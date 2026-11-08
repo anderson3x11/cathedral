@@ -3,7 +3,7 @@
 Fusion calculator, skill planner and party builder for 41 Megami Tensei games:
 Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more. Named after the Cathedral of Shadows.
 
-**Use it:** https://anderson3x11.github.io/cathedral/
+**Use it:** https://anderson3x11.dev/cathedral/
 
 ## What it does
 
