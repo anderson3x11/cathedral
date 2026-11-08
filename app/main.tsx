@@ -1024,7 +1024,7 @@ function App() {
 
   return (
     <Fragment>
-      <header class="top">
+      {route.game && <header class="top">
         <div class="top-inner">
           <a class="brand" href="#home"><img src="logo.png" alt="" width="24" height="24" />Cathedral</a>
           {route.game && <Fragment><span class="sep" aria-hidden="true">/</span><a class="cur-game" href={href({ game: route.game, view: 'list' })}>{meta.name}</a></Fragment>}
@@ -1037,7 +1037,7 @@ function App() {
             </div>
           </nav>
         )}
-      </header>
+      </header>}
       <main class="main">{body}</main>
       <footer class="foot">
         <p>Fusion data and logic from <a href="https://github.com/aqiu384/megaten-fusion-tool" target="_blank" rel="noopener">aqiu384’s Megami Tensei Fusion Tools</a>, released into the public domain. Unofficial fan tool, not affiliated with Atlus or Sega.</p>
