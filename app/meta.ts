@@ -37,7 +37,7 @@ export const GAMES: { id: string; name: string; short: string; series: string; u
   { id: 'smt4', name: 'SMT IV', short: 'SMT IV', series: 'Shin Megami Tensei', ...SMT },
   { id: 'smt4f', name: 'SMT IV: Apocalypse', short: 'SMT IVA', series: 'Shin Megami Tensei', ...SMT },
   { id: 'smt5', name: 'SMT V', short: 'SMT V', series: 'Shin Megami Tensei', ...SMT },
-  { id: 'smt5v', name: 'SMT V: Vengeance', short: 'SMT VV', series: 'Shin Megami Tensei', ...SMT },
+  { id: 'smt5v', name: 'SMT V: Vengeance', short: 'SMT V Vengeance', series: 'Shin Megami Tensei', ...SMT },
   { id: 'p1', name: 'Revelations: Persona', short: 'P1', series: 'Persona', ...PER, ...FIXED },
   { id: 'p2t', name: 'Persona 2: Innocent Sin', short: 'P2 IS', series: 'Persona', ...PER, ...FIXED },
   { id: 'p2b', name: 'Persona 2: Eternal Punishment', short: 'P2 EP', series: 'Persona', ...PER, ...FIXED },

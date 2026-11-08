@@ -5,6 +5,7 @@ import { planSkills, maskToSkills, PlanNode, PlanResult } from './planner';
 import { demonArt, Art } from './art';
 
 type Eng = any;
+declare const __BUILD__: string;
 
 // ---------- storage (best effort) ----------
 const store = {
@@ -31,9 +32,9 @@ function loadGame(id: string): Promise<Eng> {
       };
       if (w.MegatenGames && w.MegatenGames[id]) { ready(); return; }
       const s = document.createElement('script');
-      s.src = `games/${id}.js`;
+      s.src = `games/${id}.js?v=${__BUILD__}`; // new build, new URL: no stale game data after an update
       s.onload = ready;
-      s.onerror = () => reject(new Error('Could not load game data'));
+      s.onerror = () => { delete engines[id]; s.remove(); reject(new Error('Could not load the game data')); };
       document.head.appendChild(s);
     });
   }
@@ -52,19 +53,40 @@ function indexEngine(eng: Eng) {
   eng.ix = { bySlug, slugOf, skillBySlug, skillSlug, demons, statMax };
 }
 
+// ---------- owned demons ----------
+function useOwned(game: string): [string[], (o: string[]) => void] {
+  const [owned, set] = useState<string[]>(() => store.get(game + ':owned', []));
+  return [owned, (o: string[]) => { set(o); store.set(game + ':owned', o); }];
+}
+
+// ---------- theme ----------
+// '' follows the system setting; 'light' / 'dark' override it (tokens in style.css key off data-theme).
+const THEMES = ['', 'light', 'dark'];
+function applyTheme(t: string) { if (t) { document.documentElement.dataset.theme = t; } else { delete document.documentElement.dataset.theme; } }
+applyTheme(store.get('theme', ''));
+function ThemeButton() {
+  const [t, setT] = useState<string>(() => store.get('theme', ''));
+  const next = THEMES[(THEMES.indexOf(t) + 1) % THEMES.length];
+  const label = t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System';
+  return <button class="theme-btn" title={`Theme: ${label}. Click for ${next || 'system'}.`}
+    onClick={() => { setT(next); store.set('theme', next); applyTheme(next); }}>Theme: {label}</button>;
+}
+
 // ---------- routing ----------
 interface Route { game: string; view: string; arg?: string }
-const GAME_RE = new RegExp(`^(${GAMES.map(g => g.id).join('|')})(?:-(d|s)-(.+)|-(skills|planner|party|unlocks))?$`);
+const GAME_RE = new RegExp(`^(${GAMES.map(g => g.id).join('|')})(?:-(d|s|p)-(.+)|-(skills|planner|party|unlocks|chart))?$`);
 function parseHash(): Route {
   const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
   const m = raw.match(GAME_RE);
   if (!m) { return { game: '', view: 'home' }; }
   if (m[2] === 'd') { return { game: m[1], view: 'demon', arg: m[3] }; }
   if (m[2] === 's') { return { game: m[1], view: 'skill', arg: m[3] }; }
+  if (m[2] === 'p') { return { game: m[1], view: 'party', arg: m[3] }; }
   return { game: m[1], view: m[4] || 'list' };
 }
 function href(r: Route) {
   if (r.view === 'home') { return '#home'; }
+  if (r.view === 'party' && r.arg) { return `#${r.game}-p-${r.arg}`; }
   if (r.view === 'demon') { return `#${r.game}-d-${r.arg}`; }
   if (r.view === 'skill') { return `#${r.game}-s-${r.arg}`; }
   if (r.view === 'list') { return `#${r.game}`; }
@@ -460,6 +482,8 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
   const meta = gameMeta(eng.cfg.id);
   if (!d) { return <section class="view"><h1>Not found</h1><p class="empty">No {meta.unit} matches this link. <a href={href({ game: eng.cfg.id, view: 'list' })}>Back to the compendium</a>.</p></section>; }
   const inParty = party.includes(d.name);
+  const [owned, setOwned] = useOwned(eng.cfg.id);
+  const isOwned = owned.includes(d.name);
   const align = d.align && d.align.startsWith('align-') ? alignLabel(d.align) : '';
   const ailments: string[] = eng.cfg.ailmentElems;
   return (
@@ -474,6 +498,8 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
           <button class={inParty ? 'btn' : 'btn primary'} onClick={() => setParty(inParty ? party.filter(p => p !== d.name) : party.concat([d.name]).slice(-6))}>
             {inParty ? 'Remove from party' : 'Add to party'}
           </button>
+          {!eng.cfg.noPlanner && <button class="btn" aria-pressed={isOwned} title="Owned demons are preferred by the skill planner"
+            onClick={() => setOwned(isOwned ? owned.filter(n => n !== d.name) : owned.concat([d.name]))}>{isOwned ? 'Owned ✓' : 'I own this'}</button>}
           {!eng.cfg.noPlanner && <a class="btn" href={`${href({ game: eng.cfg.id, view: 'planner' })}`} onClick={() => store.set(eng.cfg.id + ':planTarget', d.name)}>Plan skills</a>}
         </div>
       </header>
@@ -611,7 +637,7 @@ function SkillChips({ eng, names }: { eng: Eng; names: string[] }) {
 }
 
 // Flattens a plan tree into what the player does: demons to get first, then fusions in order.
-function PlanSteps({ eng, plan, skills }: { eng: Eng; plan: PlanNode; skills: string[] }) {
+function PlanSteps({ eng, plan, skills, owned }: { eng: Eng; plan: PlanNode; skills: string[]; owned: string[] }) {
   const leaves: PlanNode[] = [];
   const fusions: PlanNode[] = [];
   const walk = (n: PlanNode) => { if (!n.parents.length) { leaves.push(n); return; } n.parents.forEach(walk); fusions.push(n); };
@@ -629,7 +655,7 @@ function PlanSteps({ eng, plan, skills }: { eng: Eng; plan: PlanNode; skills: st
         <h4>Get these first</h4>
         <ul>
           {leaves.map(n => { const l = learnAt(n); return (
-            <li><DemonLink eng={eng} name={n.demon} /><span class="why">{l.length ? l.map(x => x.includes(' at Lv ') ? `learns ${x}` : `knows ${x}`).join(', ') : 'any copy, no skill needed'}</span></li>
+            <li><DemonLink eng={eng} name={n.demon} />{owned.includes(n.demon) && <span class="tag owned">owned</span>}<span class="why">{l.length ? l.map(x => x.includes(' at Lv ') ? `learns ${x}` : `knows ${x}`).join(', ') : 'any copy, no skill needed'}</span></li>
           ); })}
         </ul>
       </div>
@@ -658,6 +684,7 @@ function Planner({ eng }: { eng: Eng }) {
   const id = eng.cfg.id;
   const meta = gameMeta(id);
   const [target, setTarget] = useState<string>(() => store.get(id + ':planTarget', ''));
+  const [owned, setOwned] = useOwned(id);
   const [skills, setSkills] = useState<string[]>(() => store.get(id + ':planSkills', []));
   const [depth, setDepth] = useState(2);
   const [cap, setCap] = useState(0);
@@ -673,7 +700,13 @@ function Planner({ eng }: { eng: Eng }) {
     if (!target || skills.length === 0) { return; }
     setBusy(true);
     setTimeout(() => {
-      const r = planSkills(eng, target, skills, { maxDepth: depth, levelCap: cap || 99, limit: 6 });
+      // ponytail: owned demons only re-rank finished plans (fewest starting demons you lack first);
+      // weight them inside the search if this proves too coarse.
+      const r = planSkills(eng, target, skills, { maxDepth: depth, levelCap: cap || 99, limit: owned.length ? 20 : 6 });
+      if (owned.length) {
+        const lacking = (p: PlanNode): number => p.parents.length ? p.parents.reduce((a, c) => a + lacking(c), 0) : owned.includes(p.demon) ? 0 : 1;
+        r.plans = r.plans.map((p, i) => ({ p, i, l: lacking(p) })).sort((a, b) => a.l - b.l || a.i - b.i).slice(0, 6).map(x => x.p);
+      }
       setResult(r); setBusy(false);
     }, 30);
   };
@@ -698,6 +731,11 @@ function Planner({ eng }: { eng: Eng }) {
             <Picker id="plan-target" items={names} placeholder={`Search ${meta.units}`} onPick={setTarget}
               render={v => { const d = eng.demon(v); return <span class="pick-row"><span class="lv">{d.lvl}</span>{v}<span class="rc">{d.race}</span></span>; }} />
           )}
+          <label for="plan-owned">{meta.unit === 'demon' ? 'Demons' : 'Personas'} you own <span class="muted">(optional, preferred as ingredients)</span></label>
+          {owned.length > 0 && <ul class="chips">
+            {owned.map(n => <li class="chip">{n}<button aria-label={`Remove ${n}`} onClick={() => setOwned(owned.filter(x => x !== n))}>×</button></li>)}
+          </ul>}
+          <Picker id="plan-owned" items={names.filter((n: string) => !owned.includes(n))} placeholder={`Add a ${meta.unit} you own`} onPick={n => setOwned(owned.concat([n]))} />
           <label for="plan-skill">Skills it should have <span class="muted">({skills.length} of {Math.min(8, slots)})</span></label>
           <ul class="chips">
             {skills.map(s => { const k = eng.skill(s); return (
@@ -737,7 +775,7 @@ function Planner({ eng }: { eng: Eng }) {
                       <h3>Option {i + 1}</h3>
                       <p><b>{fusions}</b> {fusions === 1 ? 'fusion' : 'fusions'} <span class="sep">/</span> highest ingredient <b>Lv {p.maxLvl}</b> <span class="sep">/</span> <span class={got.length === result.skills.length ? 'allok' : 'partial'}>{got.length === result.skills.length ? 'all skills' : `${got.length} of ${result.skills.length} skills`}</span></p>
                     </header>
-                    <PlanSteps eng={eng} plan={p} skills={result.skills} />
+                    <PlanSteps eng={eng} plan={p} skills={result.skills} owned={owned} />
                   </article>
                 );
               })}
@@ -764,8 +802,19 @@ function classifySupport(eng: Eng, skillName: string): string[] {
   return tags;
 }
 
-function Party({ eng, party, setParty }: { eng: Eng; party: string[]; setParty: (p: string[]) => void }) {
+function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; party: string[]; setParty: (p: string[]) => void; shared?: string }) {
   const meta = gameMeta(eng.cfg.id);
+  // A shared link (#game-p-slug.slug) shows that lineup; editing it or "Use this party" makes it yours.
+  const sharedNames = shared ? shared.split('.').map(sl => eng.ix.bySlug[sl]).filter(Boolean).slice(0, 6) : null;
+  const party: string[] = sharedNames || mine;
+  const partyHome = href({ game: eng.cfg.id, view: 'party' });
+  const setParty = (p: string[]) => { saveParty(p); if (sharedNames) { location.hash = partyHome; } };
+  const [link, setLink] = useState('');
+  const share = () => {
+    const url = location.href.split('#')[0] + href({ game: eng.cfg.id, view: 'party', arg: party.map(n => eng.ix.slugOf[n]).join('.') });
+    setLink(url);
+    try { navigator.clipboard.writeText(url).catch(() => {}); } catch { /* clipboard unavailable: the link is shown instead */ }
+  };
   const elems: string[] = eng.cfg.resistElems;
   const members = party.map(n => eng.demon(n)).filter(Boolean);
   const names = useMemo(() => eng.ix.demons.map((d: any) => d.name).sort(), [eng]);
@@ -800,13 +849,22 @@ function Party({ eng, party, setParty }: { eng: Eng; party: string[]; setParty: 
       <header class="view-head"><div><h1>Party</h1>
         <p class="lede">{`Line up to six ${meta.units} and check what they leave exposed.`}</p></div></header>
 
+      {sharedNames && (
+        <div class="note shared-box">
+          <p>Shared party. Your own party is unchanged until you use this one.</p>
+          <button class="btn primary" onClick={() => setParty(sharedNames)}>Use this party</button>
+          <a href={partyHome}>Back to my party</a>
+        </div>
+      )}
       <section class="panel">
         <div class="party-top">
           <h2>Members <span class="muted">{members.length} / {max}</span></h2>
           {members.length < max && <div class="party-add"><Picker id="party-add" items={names.filter((n: string) => !party.includes(n))} placeholder={`Add a ${meta.unit}`} onPick={n => setParty(party.concat([n]))}
             render={v => { const d = eng.demon(v); return <span class="pick-row"><span class="lv">{d.lvl}</span>{v}<span class="rc">{d.race}</span></span>; }} /></div>}
-          {members.length > 0 && <button class="btn subtle" onClick={() => setParty([])}>Clear</button>}
+          {members.length > 0 && <button class="btn subtle" onClick={share}>Share link</button>}
+          {members.length > 0 && !sharedNames && <button class="btn subtle" onClick={() => setParty([])}>Clear</button>}
         </div>
+        {link && <p class="share-line">Link copied: <input readOnly value={link} onFocus={e => (e.target as HTMLInputElement).select()} /></p>}
         {members.length === 0 ? (
           <div class="ghost-inline">
             <p>No one here yet. Add from the box above or from any {meta.unit} page.</p>
@@ -878,6 +936,55 @@ function Party({ eng, party, setParty }: { eng: Eng; party: string[]; setParty: 
   );
 }
 
+// ---------- fusion chart ----------
+// Races that appear in the game's own race x race chart (getRaceFusion from aqiu384's chart models).
+function chartRaces(eng: Eng): string[] {
+  const chart = eng.cfg.chart;
+  if (!chart || typeof chart.getRaceFusion !== 'function') { return []; }
+  if (!eng.ix.chartRaces) {
+    const present = new Set(eng.ix.demons.map((d: any) => d.race));
+    eng.ix.chartRaces = (eng.cfg.races as string[]).filter(r => {
+      if (!present.has(r)) { return false; }
+      try { return Object.keys(chart.getRaceFusions(r) || {}).length > 0; } catch { return false; }
+    });
+  }
+  return eng.ix.chartRaces;
+}
+
+function ChartView({ eng }: { eng: Eng }) {
+  const meta = gameMeta(eng.cfg.id);
+  const races = chartRaces(eng);
+  const [hi, setHi] = useState('');
+  const fuse = (a: string, b: string) => { try { return eng.cfg.chart.getRaceFusion(a, b) || ''; } catch { return ''; } };
+  if (!races.length) { return <section class="view"><h1>Fusion chart</h1><p class="empty">No race chart for this game.</p></section>; }
+  return (
+    <section class="view">
+      <header class="view-head"><div><h1>Fusion chart</h1>
+        <p class="lede">Which {meta.kind === 'Race' ? 'race' : 'arcana'} two {meta.units} of each {meta.kind === 'Race' ? 'race' : 'arcana'} fuse into. Special fusions and elements are listed on each {meta.unit}'s page.</p></div>
+        <select id="chart-hi" value={hi} onChange={e => setHi((e.target as HTMLSelectElement).value)} aria-label="Highlight">
+          <option value="">Highlight a {meta.kind === 'Race' ? 'race' : 'arcana'}</option>
+          {races.map(r => <option value={r}>{r}</option>)}
+        </select>
+      </header>
+      <div class="tablewrap chart-wrap">
+        <table class="grid chart">
+          <thead><tr><th class="corner" />{races.map(r => <th class={r === hi ? 'hi' : ''}><span>{r}</span></th>)}</tr></thead>
+          <tbody>
+            {races.map(a => (
+              <tr class={a === hi ? 'hi' : ''}>
+                <th scope="row">{a}</th>
+                {races.map(b => { const r = fuse(a, b); return (
+                  <td class={(b === hi ? 'hi ' : '') + (r && r === hi ? 'res-hi' : '')} title={r ? `${a} × ${b} = ${r}` : `${a} × ${b}: no result`}>{r}</td>
+                ); })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 // ---------- unlocks ----------
 function Unlocks({ eng, onChange }: { eng: Eng; onChange: () => void }) {
   const groups = eng.unlockGroups;
@@ -922,11 +1029,64 @@ function Unlocks({ eng, onChange }: { eng: Eng; onChange: () => void }) {
   );
 }
 
+// ---------- search (homepage) ----------
+type Hit = { name: string; games: { id: string; slug: string; lvl: number; race: string }[] };
+let searchIndex: Promise<Hit[]> | null = null;
+function loadSearch(): Promise<Hit[]> {
+  if (!searchIndex) {
+    searchIndex = fetch(`search.json?v=${__BUILD__}`).then(r => r.json()).then((idx: { [id: string]: [string, number, string][] }) => {
+      const byName = new Map<string, Hit>();
+      for (const g of GAMES) {
+        const seen: { [s: string]: boolean } = {};
+        for (const [name, lvl, race] of idx[g.id] || []) {
+          let slug = slugify(name); while (seen[slug]) { slug += '-x'; } seen[slug] = true; // same as indexEngine
+          const key = name.toLowerCase();
+          if (!byName.has(key)) { byName.set(key, { name, games: [] }); }
+          byName.get(key)!.games.push({ id: g.id, slug, lvl, race });
+        }
+      }
+      return Array.from(byName.values());
+    }).catch(e => { searchIndex = null; throw e; });
+  }
+  return searchIndex;
+}
+
+function Search() {
+  const [q, setQ] = useState('');
+  const [all, setAll] = useState<Hit[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const ready = () => { if (!all) { loadSearch().then(setAll).catch(() => setFailed(true)); } };
+  const s = q.trim().toLowerCase();
+  const hits = !all || s.length < 2 ? [] : all
+    .filter(h => h.name.toLowerCase().includes(s))
+    .sort((a, b) => Number(!a.name.toLowerCase().startsWith(s)) - Number(!b.name.toLowerCase().startsWith(s)) || a.name.localeCompare(b.name))
+    .slice(0, 12);
+  return (
+    <section class="search">
+      <label class="sr" for="home-search">Search every game</label>
+      <input id="home-search" type="search" autocomplete="off" placeholder="Search a demon or persona in every game, e.g. Alice"
+        value={q} onFocus={ready} onInput={e => { ready(); setQ((e.target as HTMLInputElement).value); }} />
+      {failed && <p class="note">Could not load the search index. Reload the page to try again.</p>}
+      {s.length >= 2 && all && (hits.length === 0 ? <p class="empty">No demon or persona named like “{q}”.</p> : (
+        <ul class="hits">
+          {hits.map(hit => (
+            <li>
+              <span class="hit-name">{hit.name}</span>
+              <span class="hit-games">{hit.games.map(g => <a href={`#${g.id}-d-${g.slug}`} title={`${gameMeta(g.id).name}: Lv ${g.lvl} ${g.race}`}>{gameMeta(g.id).short}</a>)}</span>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </section>
+  );
+}
+
 // ---------- home ----------
 function Home() {
   const series = Array.from(new Set(GAMES.map(g => g.series)));
   return (
     <section class="view home">
+      <div class="home-tools"><ThemeButton /></div>
       <header class="home-head">
         <img src="logo.png" alt="" width="72" height="72" />
         <div>
@@ -934,6 +1094,7 @@ function Home() {
           <p class="lede">Fusion calculator, skill planner and party builder for Megami Tensei games.</p>
         </div>
       </header>
+      <Search />
       <div class="series-grid">
         {series.map(sr => (
           <section class="series">
@@ -963,6 +1124,7 @@ function App() {
   const [route, setRoute] = useState<Route>(parseHash());
   const [eng, setEng] = useState<Eng | null>(null);
   const [err, setErr] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [rev, setRev] = useState(0);
   const [party, setPartyState] = useState<string[]>([]);
 
@@ -980,7 +1142,7 @@ function App() {
     loadGame(route.game).then(e => { if (live) { setEng(e); setPartyState(store.get(route.game + ':party', [])); } })
       .catch(e => { if (live) { setErr(String(e.message || e)); } });
     return () => { live = false; };
-  }, [route.game]);
+  }, [route.game, attempt]);
 
   const setParty = useCallback((p: string[]) => { setPartyState(p); store.set(route.game + ':party', p); }, [route.game]);
   if (eng) { eng.rev = rev; }
@@ -991,11 +1153,12 @@ function App() {
     { view: 'skills', label: 'Skills' },
     { view: 'planner', label: 'Skill planner' },
     { view: 'party', label: 'Party' + (party.length ? ` · ${party.length}` : '') },
+    { view: 'chart', label: 'Fusion chart' },
     { view: 'unlocks', label: 'Unlocks' },
   ];
   const active = route.view === 'demon' ? 'list' : route.view === 'skill' ? 'skills' : route.view;
   const meta = gameMeta(route.game);
-  const navShown = nav.filter(n => !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
+  const navShown = nav.filter(n => !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'chart' && eng && !chartRaces(eng).length) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
   useEffect(() => { // sticky table headers sit right under the top bar, whose height varies
     const t = document.querySelector('.top') as HTMLElement | null;
     if (!t) { return; }
@@ -1005,19 +1168,29 @@ function App() {
     return () => window.removeEventListener('resize', set);
   });
   useEffect(() => {
-    const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks' };
+    const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks', chart: 'Fusion chart' };
     const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
     document.title = route.view === 'home' ? 'Cathedral Fusion Tools' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
   }, [route, eng]);
 
   let body: any = route.view === 'home' ? <Home /> : <div class="loading"><span class="spin" aria-hidden="true" />Loading {meta.name}</div>;
-  if (err) { body = <div class="view"><p class="note">{err}. Reload the page to try again.</p></div>; }
+  if (err) {
+    body = (
+      <div class="view">
+        <div class="note error-box">
+          <p>{err} for {meta.name}. Check your connection and try again.</p>
+          <button class="btn" onClick={() => setAttempt(a => a + 1)}>Retry</button>
+        </div>
+      </div>
+    );
+  }
   else if (route.view !== 'home' && eng && eng.cfg.id === route.game) {
     if (route.view === 'demon') { body = <DemonPage eng={eng} slug={route.arg!} party={party} setParty={setParty} />; }
     else if (route.view === 'skill') { body = <SkillPage eng={eng} slug={route.arg!} />; }
     else if (route.view === 'skills') { body = <SkillList eng={eng} />; }
     else if (route.view === 'planner') { body = meta.noPlanner ? <div class="view"><p class="note">{meta.name} has fixed skill sets, so there is nothing to plan.</p></div> : <Planner eng={eng} />; }
-    else if (route.view === 'party') { body = <Party eng={eng} party={party} setParty={setParty} />; }
+    else if (route.view === 'party') { body = <Party eng={eng} party={party} setParty={setParty} shared={route.arg} />; }
+    else if (route.view === 'chart') { body = <ChartView eng={eng} />; }
     else if (route.view === 'unlocks') { body = <Unlocks eng={eng} onChange={() => setRev(r => r + 1)} />; }
     else { body = <Compendium eng={eng} />; }
   }
@@ -1028,7 +1201,8 @@ function App() {
         <div class="top-inner">
           <a class="brand" href="#home"><img src="logo.png" alt="" width="24" height="24" />Cathedral</a>
           {route.game && <Fragment><span class="sep" aria-hidden="true">/</span><a class="cur-game" href={href({ game: route.game, view: 'list' })}>{meta.name}</a></Fragment>}
-          <a class="switch" href="#home">{route.game ? 'Change game' : ''}</a>
+          <a class="switch" href="#home">Change game</a>
+          <ThemeButton />
         </div>
         {route.game && (
           <nav class="nav" aria-label="Sections">

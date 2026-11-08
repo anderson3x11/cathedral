@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "Fusion calculator, skill planner and party builder for Megami Tensei games",
   "scripts": {
-    "vendor": "git clone --depth 1 https://github.com/aqiu384/megaten-fusion-tool.git vendor/megaten-fusion-tool",
+    "vendor": "git clone https://github.com/aqiu384/megaten-fusion-tool.git vendor/megaten-fusion-tool && git -C vendor/megaten-fusion-tool checkout --quiet 0b207612f6cdcff092e62af16f5c355271a1d892",
     "build:engines": "node build-engine.mjs",
     "build:app": "node build-app.mjs",
-    "build": "node build-engine.mjs && node build-app.mjs",
-    "serve": "cd dist && python3 -m http.server 8765"
+    "build": "node build-engine.mjs && node build-app.mjs && node build-search.mjs",
+    "serve": "cd dist && python3 -m http.server 8765",
+    "build:search": "node build-search.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

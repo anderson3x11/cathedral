@@ -60,6 +60,11 @@ button, input, select { font: inherit; color: inherit; }
 .cur-game { font-weight: 600; }
 .brand:hover, .cur-game:hover { text-decoration: underline; }
 .switch { margin-left: auto; font-size: 13px; }
+.theme-btn { background: none; border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.theme-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+.home-tools { display: flex; justify-content: flex-end; margin-bottom: -10px; }
+.error-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.error-box p { margin: 0; }
 .nav-inner { display: flex; overflow-x: auto; scrollbar-width: none; }
 .nav a { padding: 6px 12px; text-decoration: none; color: var(--link); white-space: nowrap; border: 1px solid transparent; border-bottom: 0; margin-bottom: -1px; border-radius: 4px 4px 0 0; }
 .nav a:hover { background: var(--sunk); }
@@ -88,6 +93,12 @@ h3 { font-size: 14px; }
 .panel.ghost p { margin: 0; }
 
 /* ---- home ---- */
+.search input { width: 100%; font-size: 15px; min-height: 42px; }
+.hits { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 4px; }
+.hits li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 7px 12px; }
+.hits li + li { border-top: 1px solid var(--line); }
+.hit-name { font-weight: 600; min-width: 160px; }
+.hit-games { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
 .home-head { display: flex; align-items: center; gap: 14px; }
 .home-head img { flex: none; }
 .series-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 18px; align-items: start; }
@@ -285,6 +296,25 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .skchip img.ei { width: 16px; height: 16px; padding: 1px; }
 
 /* ---- party ---- */
+.shared-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.shared-box p { margin: 0; }
+.share-line { margin: 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.share-line input { flex: 1; min-width: 0; max-width: 520px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; padding: 4px 6px; color: var(--ink); }
+.tag.owned { margin-left: 6px; border-color: var(--dr); color: var(--dr); }
+.btn[aria-pressed="true"] { border-color: var(--dr); color: var(--dr); }
+
+/* ---- fusion chart ---- */
+.chart { width: auto; font-size: 12px; }
+.chart th, .chart td { border: 1px solid var(--line); text-align: center; white-space: nowrap; padding: 3px 5px; }
+.chart thead th { vertical-align: bottom; height: 110px; }
+.chart thead th span { writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; }
+.chart tbody th { text-align: right; position: sticky; left: 0; z-index: 1; }
+.chart .corner { background: var(--sunk); }
+.chart .hi, .chart tr.hi td { background: var(--accent-soft); }
+.chart td.res-hi { background: var(--link); color: var(--accent-ink); font-weight: 600; }
+.chart tbody tr:nth-child(even) td { background: transparent; }
+.chart tbody tr.hi td, .chart tbody td.hi { background: var(--accent-soft); }
+.chart tbody td.res-hi { background: var(--link); }
 .party-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .party-add { flex: 1 1 260px; max-width: 360px; }
 .party { min-width: 640px; }
