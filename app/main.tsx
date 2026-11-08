@@ -979,7 +979,11 @@ function App() {
   const navShown = nav.filter(n => !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
   useEffect(() => { // sticky table headers sit right under the top bar, whose height varies
     const t = document.querySelector('.top') as HTMLElement | null;
-    if (t) { document.documentElement.style.setProperty('--top-h', t.offsetHeight + 'px'); }
+    if (!t) { return; }
+    const set = () => document.documentElement.style.setProperty('--top-h', Math.floor(t.getBoundingClientRect().height) + 'px');
+    set();
+    window.addEventListener('resize', set);
+    return () => window.removeEventListener('resize', set);
   });
   useEffect(() => {
     const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks' };

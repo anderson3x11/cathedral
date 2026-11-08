@@ -148,6 +148,8 @@ table.grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabul
 @media (min-width: 1100px) {
   .comp-wrap { overflow: visible; }
   .comp thead { position: sticky; top: var(--top-h, 78px); z-index: 2; }
+  /* no sideways scroll here, so drop the left-sticky cells: nested sticky inside a sticky thead paints badly */
+  .comp .stick-lv, .comp .stick-nm, .comp .groups .g-id { position: static; }
 }
 .rescol { text-align: center !important; width: 46px; padding-left: 2px !important; padding-right: 2px !important; }
 .tagcol { width: 1%; white-space: nowrap; text-align: right; }
