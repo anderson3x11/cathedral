@@ -95,6 +95,9 @@ export class GameEngine {
     this.comp.updateFusionSettings(this.settings.demonToggles);
   }
 
+  /** A recipe name that exists in this compendium and is unlocked (some fission data names demons the game lacks). */
+  private usable(name: string): boolean { return !!name && this.isEnabled(name) && !!this.comp.getDemon(name); }
+
   isEnabled(name: string): boolean {
     return this.settings.demonToggles[name] !== false;
   }
@@ -173,8 +176,7 @@ export class GameEngine {
     const seen = new Set<string>();
     const out: { a: string; b: string }[] = [];
     for (const p of this.cfg.fissionCalc.getFusions(name, this.comp, this.cfg.chart)) {
-      if (!p.name1 || !p.name2) { continue; }
-      if (!this.isEnabled(p.name1) || !this.isEnabled(p.name2)) { continue; }
+      if (!this.usable(p.name1) || !this.usable(p.name2)) { continue; }
       const key = [p.name1, p.name2].sort().join('|');
       if (seen.has(key)) { continue; }
       seen.add(key);
@@ -190,7 +192,7 @@ export class GameEngine {
     const out: string[][] = [];
     for (const t of this.cfg.triFissionCalc.getFusions(name, this.comp, this.cfg.squareChart)) {
       const trio = [t.name1, t.name2, t.name3];
-      if (trio.some(n => !n || !this.isEnabled(n))) { continue; }
+      if (!trio.every(n => this.usable(n))) { continue; }
       const key = trio.slice().sort().join('|');
       if (seen.has(key)) { continue; }
       seen.add(key);
@@ -209,8 +211,7 @@ export class GameEngine {
     if (!this.comp.getDemon(name)) { return []; }
     const out: { other: string; result: string }[] = [];
     for (const p of this.cfg.fusionCalc.getFusions(name, this.comp, this.cfg.chart)) {
-      if (!p.name1 || !p.name2) { continue; }
-      if (!this.isEnabled(p.name1) || !this.isEnabled(p.name2)) { continue; }
+      if (!this.usable(p.name1) || !this.usable(p.name2)) { continue; }
       out.push({ other: p.name1, result: p.name2 });
     }
     return out;

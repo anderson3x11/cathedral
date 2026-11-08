@@ -192,6 +192,11 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .dlink .rc, .pick-row .rc { font-size: 12px; color: var(--muted); }
 
 /* ---- demon page ---- */
+.art { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 4px; padding: 10px; background: var(--stripe); }
+.art img { display: block; max-width: 100%; max-height: 320px; object-fit: contain; }
+.art-wait { height: 200px; }
+.art figcaption { font-size: 12px; }
+.art figcaption a { color: var(--muted); }
 .demon-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px 16px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .demon-title { min-width: 0; }
 .badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
@@ -339,4 +344,5 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 @media (max-width: 480px) {
   .strip-row { grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)) !important; }
   .actions .btn { flex: 1 1 0; }
+  .art img { max-height: 220px; }
 }

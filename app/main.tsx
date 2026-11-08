@@ -2,6 +2,7 @@ import { h, render, Fragment } from 'preact';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'preact/hooks';
 import { ELEM_LABEL, ELEM_SHORT, RESIST_LABEL, RESIST_LONG, RESIST_RANK, GAMES, COMING_SOON, iconUrl, slugify } from './meta';
 import { planSkills, maskToSkills, PlanNode, PlanResult } from './planner';
+import { demonArt, Art } from './art';
 
 type Eng = any;
 
@@ -479,6 +480,7 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
 
       <div class="demon-grid">
         <div class="col">
+          <DemonArt eng={eng} d={d} />
           <section class="panel"><h2>Stats</h2><Stats eng={eng} d={d} /></section>
           <section class="panel">
             <ResistStrip title="Resistances" elems={eng.cfg.resistElems} codes={d.resists} />
@@ -491,6 +493,23 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
       </div>
       <Recipes eng={eng} d={d} />
     </section>
+  );
+}
+
+function DemonArt({ eng, d }: { eng: Eng; d: any }) {
+  const [art, setArt] = useState<Art | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    setArt(undefined);
+    demonArt(eng.cfg.id, d.name).then(a => { if (live) { setArt(a); } });
+    return () => { live = false; };
+  }, [eng.cfg.id, d.name]);
+  if (art === null) { return null; }
+  return (
+    <figure class="art">
+      {art ? <img src={art.src} alt={`${d.name} artwork`} referrerpolicy="no-referrer" onError={() => setArt(null)} /> : <div class="art-wait" aria-hidden="true" />}
+      {art && <figcaption><a href={art.page} target="_blank" rel="noopener">Art: Megami Tensei Wiki</a></figcaption>}
+    </figure>
   );
 }
 

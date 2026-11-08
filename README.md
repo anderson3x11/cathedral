@@ -39,6 +39,7 @@ stubs/angular-core.ts   Fake @angular/core so vendor models bundle without Angul
 app/
   main.tsx         Preact app: routing, all views
   planner.ts       Skill planner search (ours, not from vendor)
+  art.ts           Demon artwork lookup on the Fandom wiki
   meta.ts          Element labels, game list, slugify
   style.css        All styles, inlined into dist/index.html at build
   elem-sprites.svg, weapon-sprites.svg  Icon sprites from aqiu384, copied to dist/
@@ -114,6 +115,10 @@ Known gaps: ignores per-fusion inherit-count limits in Persona, does not prefer 
 - Element icons: aqiu384's `elem-sprites.svg` (public domain), copied to `app/` and into `dist/` at build.
   One icon per `<img src="elem-sprites.svg#ID">`; code to ID mapping is `iconUrl()` in app/meta.ts
   (SMT vs Persona variants for dark/almighty/recovery/support/passive). Icons sit on a dark tile for contrast.
+- Demon artwork (app/art.ts): looked up at view time on the Megami Tensei Fandom wiki (API with `origin=*`) and
+  hotlinked, never stored here. Picks the file on the demon's wiki page whose name carries the game's tag
+  (`TAGS`, e.g. "Pixie P5R.jpg", "PixieSMT3.jpg"), preferring "Art"/"Render" files, else the page's infobox image.
+  Credited under the image. Owner's call: Atlus art, removed on request. `ART_WIKI = ''` turns it all off.
 - Colors are tokens in `:root` with light and dark variants.
 - Must work at 390px wide with no horizontal page scroll; wide tables scroll inside `.tablewrap`.
 - localStorage only for per-user conveniences (party, unlocks, planner inputs), always in try/catch.
