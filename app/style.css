@@ -143,6 +143,12 @@ table.grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabul
 .comp .aff { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
 .comp .aff.up { color: var(--dr); }
 .comp .aff.down { color: var(--wk); }
+/* desktop: the table scrolls in its own box so the two header rows stay visible */
+@media (min-width: 701px) {
+  .comp-wrap { max-height: calc(100dvh - 150px); overflow: auto; }
+  .comp thead { position: sticky; top: 0; z-index: 2; }
+  .comp thead .stick-lv, .comp thead .stick-nm, .comp .groups .g-id { z-index: 3; }
+}
 .rescol { text-align: center !important; width: 46px; padding-left: 2px !important; padding-right: 2px !important; }
 .tagcol { width: 1%; white-space: nowrap; text-align: right; }
 .sortbtn { all: unset; cursor: pointer; display: inline-flex; gap: 3px; align-items: center; }

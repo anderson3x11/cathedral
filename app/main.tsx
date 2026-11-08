@@ -81,8 +81,8 @@ function Elem({ e, long }: { e: string; long?: boolean }) {
   return <span class={`elem el-${e}`} title={ELEM_LABEL[e] || e}>{src ? <img class="ei" src={src} alt="" /> : <i aria-hidden="true" />}<span class="el-t">{long ? (ELEM_LABEL[e] || e) : (ELEM_SHORT[e] || ELEM_LABEL[e] || e)}</span></span>;
 }
 
-function ResistCell({ code }: { code: string }) {
-  return <span class={`res r-${code === '-' ? 'n' : code}`} title={RESIST_LONG[code]}>{RESIST_LABEL[code] || code}</span>;
+function ResistCell({ code, blank }: { code: string; blank?: boolean }) {
+  return <span class={`res r-${code === '-' ? 'n' : code}`} title={RESIST_LONG[code]}>{blank && code === '-' ? '' : RESIST_LABEL[code] || code}</span>;
 }
 
 function DemonLink({ eng, name, showLvl = true }: { eng: Eng; name: string; showLvl?: boolean }) {
@@ -193,7 +193,6 @@ function Compendium({ eng }: { eng: Eng }) {
     <section class="view">
       <header class="view-head">
         <div>
-          <p class="eyebrow">{meta.name}</p>
           <h1>Compendium</h1>
         </div>
         <p class="count">{rows.length} of {eng.ix.demons.length} {meta.units}</p>
@@ -205,7 +204,7 @@ function Compendium({ eng }: { eng: Eng }) {
           {races.map(r => <option value={r}>{r}</option>)}
         </select>
       </div>
-      <div class="tablewrap">
+      <div class="tablewrap comp-wrap">
         <table class="grid comp">
           <thead>
             <tr class="groups">
@@ -230,7 +229,7 @@ function Compendium({ eng }: { eng: Eng }) {
                 <td class="name stick-nm"><a href={demonHref(eng, d.name)} onClick={e => e.stopPropagation()}>{d.name}</a></td>
                 <td class="muted racecol">{d.race}</td>
                 {statNames.map((_, i) => <td class={'num statcol' + (i === 0 ? ' g-start' : '')}>{d.stats[i]}</td>)}
-                {d.resists.map((r: string, i: number) => <td class={'rescol' + (i === 0 ? ' g-start' : '')}><ResistCell code={r} /></td>)}
+                {d.resists.map((r: string, i: number) => <td class={'rescol' + (i === 0 ? ' g-start' : '')}><ResistCell code={r} blank /></td>)}
                 {affElems.map((_, i) => { const v = d.affinities[i] || 0; return <td class={'rescol aff' + (i === 0 ? ' g-start' : '') + (v > 0 ? ' up' : v < 0 ? ' down' : '')}>{v > 0 ? '+' + v : v < 0 ? v : ''}</td>; })}
               </tr>
             ))}
@@ -481,7 +480,7 @@ function SkillList({ eng }: { eng: Eng }) {
   const [n, setN] = useState(80);
   return (
     <section class="view">
-      <header class="view-head"><div><p class="eyebrow">{gameMeta(eng.cfg.id).name}</p><h1>Skills</h1></div><p class="count">{rows.length} skills</p></header>
+      <header class="view-head"><div><h1>Skills</h1></div><p class="count">{rows.length} skills</p></header>
       <div class="toolbar">
         <input id="skill-search" type="search" placeholder="Search name or effect" value={q} onInput={e => { setQ((e.target as HTMLInputElement).value); setN(80); }} />
         <select id="skill-elem" value={el} onChange={e => { setEl((e.target as HTMLSelectElement).value); setN(80); }} aria-label="Type">
@@ -634,7 +633,7 @@ function Planner({ eng }: { eng: Eng }) {
 
   return (
     <section class="view">
-      <header class="view-head"><div><p class="eyebrow">{meta.name}</p><h1>Skill planner</h1>
+      <header class="view-head"><div><h1>Skill planner</h1>
         <p class="lede">Pick the {meta.unit} you want and up to 8 skills it should end up with. The planner finds the shortest fusion chains where each skill is either passed down from an ingredient or learned by levelling.</p></div></header>
       <div class="planner-grid">
         <section class="panel plan-form">
@@ -744,7 +743,7 @@ function Party({ eng, party, setParty }: { eng: Eng; party: string[]; setParty: 
 
   return (
     <section class="view">
-      <header class="view-head"><div><p class="eyebrow">{meta.name}</p><h1>Party</h1>
+      <header class="view-head"><div><h1>Party</h1>
         <p class="lede">{`Line up to six ${meta.units} and check what they leave exposed.`}</p></div></header>
 
       <section class="panel">
@@ -767,7 +766,7 @@ function Party({ eng, party, setParty }: { eng: Eng; party: string[]; setParty: 
                 {members.map((m: any) => (
                   <tr>
                     <td><DemonLink eng={eng} name={m.name} /></td>
-                    {m.resists.map((r: string) => <td class="rescol"><ResistCell code={r} /></td>)}
+                    {m.resists.map((r: string) => <td class="rescol"><ResistCell code={r} blank /></td>)}
                     <td class="tagcol"><button class="x" aria-label={`Remove ${m.name}`} onClick={() => setParty(party.filter(p => p !== m.name))}>×</button></td>
                   </tr>
                 ))}
@@ -841,7 +840,7 @@ function Unlocks({ eng, onChange }: { eng: Eng; onChange: () => void }) {
   };
   return (
     <section class="view">
-      <header class="view-head"><div><p class="eyebrow">{gameMeta(eng.cfg.id).name}</p><h1>Unlocks</h1>
+      <header class="view-head"><div><h1>Unlocks</h1>
         <p class="lede">Turn off anything you have not unlocked or do not own. Recipes everywhere update to match, since a locked {gameMeta(eng.cfg.id).unit} changes what a fusion produces.</p></div></header>
       <div class="unlock-grid">
         {groups.map((g: any) => {
@@ -923,7 +922,10 @@ function App() {
     setEng(null); setErr('');
     if (!route.game) { delete document.documentElement.dataset.game; return; }
     document.documentElement.dataset.game = route.game;
-    loadGame(route.game).then(e => { setEng(e); setPartyState(store.get(route.game + ':party', [])); }).catch(e => setErr(String(e.message || e)));
+    let live = true; // ignore a load that finishes after the user switched game
+    loadGame(route.game).then(e => { if (live) { setEng(e); setPartyState(store.get(route.game + ':party', [])); } })
+      .catch(e => { if (live) { setErr(String(e.message || e)); } });
+    return () => { live = false; };
   }, [route.game]);
 
   const setParty = useCallback((p: string[]) => { setPartyState(p); store.set(route.game + ':party', p); }, [route.game]);
@@ -939,6 +941,11 @@ function App() {
   ];
   const active = route.view === 'demon' ? 'list' : route.view === 'skill' ? 'skills' : route.view;
   const meta = gameMeta(route.game);
+  useEffect(() => {
+    const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks' };
+    const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
+    document.title = route.view === 'home' ? 'Cathedral Fusion Tools' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
+  }, [route, eng]);
 
   let body: any = route.view === 'home' ? <Home /> : <div class="loading"><span class="spin" aria-hidden="true" />Loading {meta.name}</div>;
   if (err) { body = <div class="view"><p class="note">{err}. Reload the page to try again.</p></div>; }
