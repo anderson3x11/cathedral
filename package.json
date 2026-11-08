@@ -1,0 +1,19 @@
+{
+  "name": "cathedral-fusion",
+  "version": "1.0.0",
+  "description": "Fusion calculator, skill planner and party builder for Megami Tensei games",
+  "scripts": {
+    "vendor": "git clone --depth 1 https://github.com/aqiu384/megaten-fusion-tool.git vendor/megaten-fusion-tool",
+    "build:engines": "node build-engine.mjs",
+    "build:app": "node build-app.mjs",
+    "build": "node build-engine.mjs && node build-app.mjs",
+    "serve": "cd dist && python3 -m http.server 8765"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  },
+  "dependencies": {
+    "preact": "10.25.4"
+  },
+  "private": true
+}
