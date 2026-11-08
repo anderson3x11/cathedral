@@ -38,14 +38,3 @@ Works on phones, follows your light or dark setting (or pick one), and keeps you
   Artwork belongs to Atlus and will be removed on request.
 
 Unofficial fan project, not affiliated with Atlus or Sega. Free, no ads.
-
-## Run it locally
-
-```bash
-npm install
-npm run vendor   # fetches aqiu384's tool at the tested commit
-npm run build
-npm run serve    # http://localhost:8765/index.html
-```
-
-Developer notes (architecture, adding a game, design rules) are in [CLAUDE.md](CLAUDE.md).

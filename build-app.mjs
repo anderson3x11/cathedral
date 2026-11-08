@@ -31,7 +31,6 @@ fs.writeFileSync('dist/index.html', `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${TITLE}</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="${DESC}">
 <link rel="canonical" href="${SITE}">
 <link rel="icon" href="favicon.ico" sizes="any">
