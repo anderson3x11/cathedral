@@ -1,9 +1,11 @@
 # Cathedral Fusion Tools
 
 Fan-made fusion calculator, skill planner and party builder for Megami Tensei games.
-Live: SMT III Nocturne, Strange Journey Redux, SMT IV, SMT IV Apocalypse, SMT V Vengeance, Persona 3 Reload,
-Persona 5, Persona 5 Royal, Persona 5 Tactica, Raidou vs. King Abaddon, Soul Hackers 2, Raidou Remastered,
-Devil Survivor Overclocked, Devil Survivor 2 Record Breaker.
+Live: all 41 games of aqiu384's tool, from Kyuuyaku Megami Tensei to SMT V Vengeance (list in `GAMES`, app/meta.ts):
+SMT I, II, if..., NINE, III Nocturne, IMAGINE, Strange Journey (+ Redux), IV, IV Apocalypse, V (+ Vengeance);
+Persona 1, 2 IS/EP, 3 (+ FES, Answer, Portable, Reload), 4 (+ Golden), 5 (+ Royal, Strikers, Tactica), Q, Q2;
+Devil Summoner, Soul Hackers, Raidou 1/2, Raidou Remastered, Soul Hackers 2; Devil Survivor 1/2 (+ Overclocked, Record Breaker);
+Majin Tensei 1/2.
 
 ## Golden rule
 
@@ -39,7 +41,7 @@ app/
   planner.ts       Skill planner search (ours, not from vendor)
   meta.ts          Element labels, game list, slugify
   style.css        All styles, inlined into dist/index.html at build
-  elem-sprites.svg Element icon sprite from aqiu384, copied to dist/
+  elem-sprites.svg, weapon-sprites.svg  Icon sprites from aqiu384, copied to dist/
   logo.png, favicon.png  Made from logo-source.png (the Magatama badge), copied to dist/
 build-engine.mjs   esbuild, alias @src -> vendor/megaten-fusion-tool/src/app
 build-app.mjs      esbuild app + writes dist/index.html, copies elem-sprites.svg
@@ -62,22 +64,30 @@ Vendor objects live in `eng.comp` (Compendium) and `eng.cfg.chart` (FusionChart)
 
 ## Adding a game
 
-Games on the `smt4f` (SMT family) or `pq2` (Persona family) wiring need no config code:
-`build-engine.mjs` has a `vendor-module` esbuild plugin that loads aqiu384's own
-`<game>/compendium.module.ts`, drops its Angular routes and exports `createCompConfig`.
+No config is copied by hand. `build-engine.mjs` has a `vendor-module` esbuild plugin that loads aqiu384's own
+`<game>/compendium.module.ts`, drops its Angular routes and exports `createCompConfig`. Then, by wiring:
 
-1. Check `vendor/megaten-fusion-tool/src/app/<folder>/compendium.module.ts` imports `smt4f` or `pq2` routing,
-   and note the key it returns (e.g. `smtdsj`, `ds2br`).
-2. Create `engine/<id>.ts` (3 lines, copy `engine/smt3.ts`): `registerSmt` or `registerPersona` from
-   `engine/vendor-game.ts`, passing `() => createCompConfig()['<key>']`.
-3. Add the id to `GAMES` in `app/meta.ts` (series decides the homepage group) and to the list in `build-engine.mjs`.
-   Routes are built from `GAMES`.
-4. New element codes: add the icon id to `SMT_ICON` / `PER_ICON` (copy from aqiu384's compendium.component.css)
-   and a label to `ELEM_LABEL` / `ELEM_SHORT`.
+- `smt4f` routing (SMT family): `registerSmt` in `engine/vendor-game.ts` (mirrors smt4f/fusion-data.service.ts).
+- `pq2` routing (Persona family): `registerPersona` (mirrors pq2/fusion-data.service.ts, incl. p5/p5t overrides and triple fusion).
+- Self-contained `FusionDataService` (smt1, p1, kmt1, p5s wirings): `registerService` builds aqiu384's own service
+  object (our `@angular/core` stub has no-op `Injectable`/`Inject`) and takes its compendium, charts and calculators.
+
+1. Find the folder in `vendor/megaten-fusion-tool/src/app/` and the key `createCompConfig()` returns (none for smt1/p1-style).
+2. Create `engine/<id>.ts`, 3 or 4 lines; copy `engine/smt3.ts` (keyed) or `engine/smt2.ts` (service).
+3. Add the id to `GAMES` in `app/meta.ts` (series = homepage group, `noPlanner` for games with fixed skill sets).
+   `build-engine.mjs` builds every file in `engine/`; routes come from `GAMES`.
+4. New element codes: add the sprite id to the matching icon map in app/meta.ts (`SMT_ICON`, `PER_ICON`, `NES_ICON`,
+   `MIB_ICON`; copy from aqiu384's compendium.component.css) and a label to `ELEM_LABEL`.
 5. Smoke test in Node: `globalThis.window = globalThis; require('./dist/games/<id>.js')`, then check a recipe.
 
-Not supported yet: triple fusion (P3 FES/Portable, P4/P4G, Persona Q) and the `smt1` wiring (SMT I/II, if...).
 `smt5v`, `p3r`, `p5r` predate the plugin and keep hand-copied configs.
+
+## Triple fusion
+
+`GameEngine.reverseTriple(name)` uses the game's `triFissionCalc` with its `squareChart` (normal + triple chart).
+Recipes show it as "Three demons" under "Made from" (20 easiest, then up to 1000). It is expensive (P4G: ~1.3M trios,
+~100 ms per persona), so the planner only uses trios for demons with no two-demon recipe, 40 easiest each.
+"Fuses into" lists two-demon fusions only.
 
 ## Routing
 
@@ -110,13 +120,13 @@ Known gaps: ignores per-fusion inherit-count limits in Persona, does not prefer 
 
 ## Publishing
 
-Currently published as a claude.ai artifact (multi-file: index.html + app.js + elem-sprites.svg + games/*.js).
+Currently published as a claude.ai artifact (multi-file: index.html + app.js + elem-sprites.svg + weapon-sprites.svg + logo.png + favicon.png + games/*.js).
 For a normal host (GitHub Pages, Netlify), `dist/` is a static site as-is.
 
 ## Roadmap
 
-1. Triple fusion support, then P4 Golden, P3 FES/Portable, Persona Q. Then the `smt1` wiring games.
-2. Planner: "demons I own" list to bias results, Web Worker so long searches don't block the UI.
+1. Planner: "demons I own" list to bias results, Web Worker so long searches don't block the UI (and can use all trios).
+2. "Fuses into" for triple fusion.
 3. Party: shareable party links, Nahobino/protagonist slot.
 4. Fusion chart view (race x race grid).
 5. Compendium: column for unlock condition, filter by "fusable now".

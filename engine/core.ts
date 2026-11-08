@@ -47,6 +47,10 @@ export interface GameConfig {
   fissionCalc: any;
   elementRace?: string;
   lightDark?: (race: string) => number;
+  triFissionCalc?: any;          // three-ingredient recipes, when the game has them
+  squareChart?: any;             // { normalChart, tripleChart, raceOrder } for the triple calculators
+  iconSet?: 'smt' | 'persona' | 'nes' | 'mib';
+  noPlanner?: boolean;           // fixed skill sets, nothing to inherit
 }
 
 export interface DemonView {
@@ -95,7 +99,8 @@ export class GameEngine {
     return this.settings.demonToggles[name] !== false;
   }
 
-  private decodeResist(code: number): ResistCode { return RESIST_TYPES[code >> 10] || '-'; }
+  // & 7: the smt1 wiring sets bit 3 on its resist types
+  private decodeResist(code: number): ResistCode { return RESIST_TYPES[(code >> 10) & 7] || '-'; }
 
   demonNames(): string[] {
     return Object.keys(this.cfg.rawDemons).filter(n => {
@@ -174,6 +179,22 @@ export class GameEngine {
       if (seen.has(key)) { continue; }
       seen.add(key);
       out.push({ a: p.name1, b: p.name2 });
+    }
+    return out;
+  }
+
+  /** Every trio of ingredients that produces `name` (empty when the game has no triple fusion). */
+  reverseTriple(name: string): string[][] {
+    if (!this.cfg.triFissionCalc || !this.comp.getDemon(name) || this.special(name).length > 1) { return []; }
+    const seen = new Set<string>();
+    const out: string[][] = [];
+    for (const t of this.cfg.triFissionCalc.getFusions(name, this.comp, this.cfg.squareChart)) {
+      const trio = [t.name1, t.name2, t.name3];
+      if (trio.some(n => !n || !this.isEnabled(n))) { continue; }
+      const key = trio.slice().sort().join('|');
+      if (seen.has(key)) { continue; }
+      seen.add(key);
+      out.push(trio);
     }
     return out;
   }

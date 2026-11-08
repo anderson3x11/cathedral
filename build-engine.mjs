@@ -15,12 +15,13 @@ const vendorModule = {
   },
 };
 const SRC = path.resolve('vendor/megaten-fusion-tool/src/app');
-const games = process.argv.slice(2).length ? process.argv.slice(2) : ['smt5v', 'p3r', 'p5r', 'smt3', 'smt4', 'smt4f', 'smtdsj', 'dso', 'ds2br', 'rrch', 'krao', 'sh2', 'p5', 'p5t'];
+const games = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync('engine').filter(f => !['core.ts', 'vendor-game.ts', 'persona-common.ts'].includes(f)).map(f => f.replace('.ts', ''));
 for (const g of games) {
   await esbuild.build({
     entryPoints: [`engine/${g}.ts`], bundle: true, minify: true, format: 'iife',
     outfile: `dist/games/${g}.js`, target: 'es2020',
     alias: { '@src': SRC, '@angular/core': './stubs/angular-core.ts' },
     loader: { '.json': 'json' }, logLevel: 'warning', plugins: [vendorModule],
+    tsconfigRaw: { compilerOptions: { experimentalDecorators: true } },
   });
 }

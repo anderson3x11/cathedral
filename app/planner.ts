@@ -73,6 +73,12 @@ export function planSkills(eng: Eng, target: string, skills: string[], opts: { m
     if (!r) {
       const sp = eng.special(n);
       r = sp.length > 1 ? [sp] : eng.reverse(n).map((p: any) => [p.a, p.b]);
+      // ponytail: trios only for demons with no two-demon recipe, capped to the 40 easiest.
+      // Computing trios for every demon takes ~20 s in P4G; lift this if the planner moves to a Web Worker.
+      if (!r.length) {
+        r = eng.reverseTriple(n).map((t: string[]) => [t, Math.max(...t.map(lvl))] as [string[], number])
+          .sort((a: any, b: any) => a[1] - b[1]).slice(0, 40).map((x: any) => x[0]);
+      }
       r = r.filter(group => group.every(g => lvl(g) <= levelCap && eng.isEnabled(g) && g !== target));
       recipeCache.set(n, r);
     }

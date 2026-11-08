@@ -78,7 +78,8 @@ function gameMeta(id: string) { return GAMES.find(g => g.id === id) || GAMES[0];
 let curFamily = '';
 function Elem({ e, long }: { e: string; long?: boolean }) {
   const src = iconUrl(curFamily, e);
-  return <span class={`elem el-${e}`} title={ELEM_LABEL[e] || e}>{src ? <img class="ei" src={src} alt="" /> : <i aria-hidden="true" />}<span class="el-t">{long ? (ELEM_LABEL[e] || e) : (ELEM_SHORT[e] || ELEM_LABEL[e] || e)}</span></span>;
+  const label = ELEM_LABEL[e] || (e ? e.charAt(0).toUpperCase() + e.slice(1) : '');
+  return <span class={`elem el-${e}`} title={label}>{src ? <img class="ei" src={src} alt="" /> : <i aria-hidden="true" />}<span class="el-t">{long ? label : (ELEM_SHORT[e] || label.slice(0, 3))}</span></span>;
 }
 
 function ResistCell({ code, blank }: { code: string; blank?: boolean }) {
@@ -263,7 +264,7 @@ function ResistStrip({ elems, codes, title }: { elems: string[]; codes: string[]
       <div class="strip-row" style={{ gridTemplateColumns: `repeat(${elems.length}, minmax(0, 1fr))` }}>
         {elems.map((e, i) => (
           <div class="strip-cell">
-            <span class="strip-k">{ELEM_SHORT[e] ? <Elem e={e} /> : e}</span>
+            <span class="strip-k">{ELEM_SHORT[e] || iconUrl(curFamily, e) ? <Elem e={e} /> : e}</span>
             <ResistCell code={codes[i] || '-'} />
           </div>
         ))}
@@ -336,12 +337,17 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
   const [tab, setTab] = useState<'from' | 'into'>('from');
   const [q, setQ] = useState('');
   const [all, setAll] = useState(false);
-  useEffect(() => { setQ(''); setAll(false); }, [d.name]);
+  const [allTri, setAllTri] = useState(false);
+  useEffect(() => { setQ(''); setAll(false); setAllTri(false); }, [d.name]);
   const special = eng.special(d.name);
   const pairs = useMemo(() => eng.reverse(d.name).map((p: any) => {
     const a = eng.demon(p.a), b = eng.demon(p.b);
     const [x, y] = a.lvl <= b.lvl ? [a, b] : [b, a];
     return { x, y, hi: Math.max(a.lvl, b.lvl), sum: a.lvl + b.lvl };
+  }).sort((p: any, r: any) => p.hi - r.hi || p.sum - r.sum), [eng, d.name, eng.rev]);
+  const trios = useMemo(() => eng.reverseTriple(d.name).map((t: string[]) => {
+    const ds = t.map(n => eng.demon(n)).sort((a: any, b: any) => a.lvl - b.lvl);
+    return { ds, hi: ds[2].lvl, sum: ds[0].lvl + ds[1].lvl + ds[2].lvl };
   }).sort((p: any, r: any) => p.hi - r.hi || p.sum - r.sum), [eng, d.name, eng.rev]);
   const forward = useMemo(() => eng.forward(d.name).map((p: any) => ({ o: eng.demon(p.other), r: eng.demon(p.result) }))
     .filter((p: any) => p.o && p.r).sort((p: any, r: any) => p.r.lvl - r.r.lvl || p.o.lvl - r.o.lvl), [eng, d.name, eng.rev]);
@@ -349,6 +355,8 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
   const s = q.trim().toLowerCase();
   const match = (x: any) => x.name.toLowerCase().includes(s) || x.race.toLowerCase().includes(s);
   const fromRows = pairs.filter((p: any) => !s || match(p.x) || match(p.y));
+  const triRows = trios.filter((p: any) => !s || p.ds.some(match));
+  const triShown = allTri ? triRows.slice(0, 1000) : triRows.slice(0, 20);
   const intoRows = forward.filter((p: any) => !s || match(p.o) || match(p.r));
   const rows = tab === 'from' ? fromRows : intoRows;
   const shown = all ? rows : rows.slice(0, 40);
@@ -358,7 +366,7 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
     <section class="panel recipes">
       <div class="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'from'} class={tab === 'from' ? 'on' : ''} onClick={() => { setTab('from'); setAll(false); }}>
-          Made from <span class="n">{special.length > 1 ? 1 : pairs.length}</span>
+          Made from <span class="n">{special.length > 1 ? 1 : pairs.length + trios.length}</span>
         </button>
         <button role="tab" aria-selected={tab === 'into'} class={tab === 'into' ? 'on' : ''} onClick={() => { setTab('into'); setAll(false); }}>
           Fuses into <span class="n">{forward.length}</span>
@@ -372,12 +380,13 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
           <ul class="chips">{special.map((n: string) => <li><DemonLink eng={eng} name={n} /></li>)}</ul>
         </div>
       )}
-      {tab === 'from' && special.length <= 1 && pairs.length === 0 && (
+      {tab === 'from' && special.length <= 1 && pairs.length === 0 && trios.length === 0 && (
         <p class="empty">{d.isElement ? `Elements come from fusing two ${unit}s of the same ${eng.cfg.family === 'smt' ? 'race' : 'arcana'}. See “Fuses into” on any of them.` : d.prereq ? `Not fusable with your current unlocks. ${d.prereq}.` : `This ${unit} cannot be fused. ${d.prereq || ''}`}</p>
       )}
       {tab === 'from' && special.length <= 1 && pairs.length > 0 && (
         <Fragment>
           <p class="hint">Sorted by the highest-level ingredient, so the easiest recipes come first.</p>
+          {trios.length > 0 && <h3 class="rec-h">Two {unit}s</h3>}
           <div class="tablewrap">
             <table class="grid pairs">
               <thead><tr><th>Ingredient</th><th class="plus" aria-hidden="true" /><th>Ingredient</th><th class="num">Max Lv</th></tr></thead>
@@ -393,6 +402,32 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
               </tbody>
             </table>
           </div>
+        </Fragment>
+      )}
+      {tab === 'from' && rows.length > shown.length && <button class="more" onClick={() => setAll(true)}>Show all {rows.length}</button>}
+      {tab === 'from' && special.length <= 1 && trios.length > 0 && (
+        <Fragment>
+          <h3 class="rec-h">Three {unit}s <span class="muted">(triple fusion)</span></h3>
+          <div class="tablewrap">
+            <table class="grid pairs trios">
+              <thead><tr><th>Ingredient</th><th class="plus" aria-hidden="true" /><th>Ingredient</th><th class="plus" aria-hidden="true" /><th>Ingredient</th><th class="num">Max Lv</th></tr></thead>
+              <tbody>
+                {triShown.map((p: any) => (
+                  <tr>
+                    <td><DemonLink eng={eng} name={p.ds[0].name} /></td>
+                    <td class="plus" aria-hidden="true">×</td>
+                    <td><DemonLink eng={eng} name={p.ds[1].name} /></td>
+                    <td class="plus" aria-hidden="true">×</td>
+                    <td><DemonLink eng={eng} name={p.ds[2].name} /></td>
+                    <td class="num muted">{p.hi}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {triRows.length > triShown.length && (allTri
+            ? <p class="hint">Showing the 1000 easiest of {triRows.length}. Use the filter to narrow it down.</p>
+            : <button class="more" onClick={() => setAllTri(true)}>Show more ({triRows.length} in total)</button>)}
         </Fragment>
       )}
       {tab === 'into' && (
@@ -412,8 +447,8 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
           </table>
         </div>
       )}
-      {rows.length > shown.length && <button class="more" onClick={() => setAll(true)}>Show all {rows.length}</button>}
-      {s && rows.length === 0 && <p class="empty">No recipe includes “{q}”.</p>}
+      {tab === 'into' && rows.length > shown.length && <button class="more" onClick={() => setAll(true)}>Show all {rows.length}</button>}
+      {s && rows.length === 0 && triRows.length === 0 && <p class="empty">No recipe includes “{q}”.</p>}
     </section>
   );
 }
@@ -438,7 +473,7 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
           <button class={inParty ? 'btn' : 'btn primary'} onClick={() => setParty(inParty ? party.filter(p => p !== d.name) : party.concat([d.name]).slice(-6))}>
             {inParty ? 'Remove from party' : 'Add to party'}
           </button>
-          <a class="btn" href={`${href({ game: eng.cfg.id, view: 'planner' })}`} onClick={() => store.set(eng.cfg.id + ':planTarget', d.name)}>Plan skills</a>
+          {!eng.cfg.noPlanner && <a class="btn" href={`${href({ game: eng.cfg.id, view: 'planner' })}`} onClick={() => store.set(eng.cfg.id + ':planTarget', d.name)}>Plan skills</a>}
         </div>
       </header>
 
@@ -890,7 +925,7 @@ function Home() {
                   <a class="gname" href={`#${g.id}`}>{g.name}</a>
                   <span class="glinks">
                     <a href={href({ game: g.id, view: 'skills' })}>Skills</a>
-                    <a href={href({ game: g.id, view: 'planner' })}>Planner</a>
+                    {!g.noPlanner && <a href={href({ game: g.id, view: 'planner' })}>Planner</a>}
                     <a href={href({ game: g.id, view: 'party' })}>Party</a>
                   </span>
                 </li>
@@ -899,7 +934,7 @@ function Home() {
           </section>
         ))}
       </div>
-      <p class="muted soon">Not yet supported: {COMING_SOON.join(', ')}.</p>
+      {COMING_SOON.length > 0 && <p class="muted soon">Not yet supported: {COMING_SOON.join(', ')}.</p>}
     </section>
   );
 }
@@ -930,7 +965,7 @@ function App() {
 
   const setParty = useCallback((p: string[]) => { setPartyState(p); store.set(route.game + ':party', p); }, [route.game]);
   if (eng) { eng.rev = rev; }
-  curFamily = eng ? eng.cfg.family : '';
+  curFamily = eng ? eng.cfg.iconSet || eng.cfg.family : '';
 
   const nav = [
     { view: 'list', label: 'Compendium' },
@@ -941,6 +976,11 @@ function App() {
   ];
   const active = route.view === 'demon' ? 'list' : route.view === 'skill' ? 'skills' : route.view;
   const meta = gameMeta(route.game);
+  const navShown = nav.filter(n => !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
+  useEffect(() => { // sticky table headers sit right under the top bar, whose height varies
+    const t = document.querySelector('.top') as HTMLElement | null;
+    if (t) { document.documentElement.style.setProperty('--top-h', t.offsetHeight + 'px'); }
+  });
   useEffect(() => {
     const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks' };
     const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
@@ -953,7 +993,7 @@ function App() {
     if (route.view === 'demon') { body = <DemonPage eng={eng} slug={route.arg!} party={party} setParty={setParty} />; }
     else if (route.view === 'skill') { body = <SkillPage eng={eng} slug={route.arg!} />; }
     else if (route.view === 'skills') { body = <SkillList eng={eng} />; }
-    else if (route.view === 'planner') { body = <Planner eng={eng} />; }
+    else if (route.view === 'planner') { body = meta.noPlanner ? <div class="view"><p class="note">{meta.name} has fixed skill sets, so there is nothing to plan.</p></div> : <Planner eng={eng} />; }
     else if (route.view === 'party') { body = <Party eng={eng} party={party} setParty={setParty} />; }
     else if (route.view === 'unlocks') { body = <Unlocks eng={eng} onChange={() => setRev(r => r + 1)} />; }
     else { body = <Compendium eng={eng} />; }
@@ -970,7 +1010,7 @@ function App() {
         {route.game && (
           <nav class="nav" aria-label="Sections">
             <div class="nav-inner">
-              {nav.map(n => <a class={active === n.view ? 'on' : ''} aria-current={active === n.view ? 'page' : undefined} href={href({ game: route.game, view: n.view })}>{n.label}</a>)}
+              {navShown.map(n => <a class={active === n.view ? 'on' : ''} aria-current={active === n.view ? 'page' : undefined} href={href({ game: route.game, view: n.view })}>{n.label}</a>)}
             </div>
           </nav>
         )}
