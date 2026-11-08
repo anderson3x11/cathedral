@@ -1090,8 +1090,8 @@ function Home() {
       <header class="home-head">
         <img src="logo.png" alt="" width="72" height="72" />
         <div>
-          <h1>Cathedral Fusion Tools</h1>
-          <p class="lede">Fusion calculator, skill planner and party builder for Megami Tensei games.</p>
+          <h1>Cathedral</h1>
+          <p class="lede">Megaten fusion calculator, skill planner and party builder for 41 games.</p>
         </div>
       </header>
       <Search />
@@ -1170,7 +1170,7 @@ function App() {
   useEffect(() => {
     const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks', chart: 'Fusion chart' };
     const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
-    document.title = route.view === 'home' ? 'Cathedral Fusion Tools' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
+    document.title = route.view === 'home' ? 'Cathedral: Megaten Fusion Calculator for SMT, Persona and more' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
   }, [route, eng]);
 
   let body: any = route.view === 'home' ? <Home /> : <div class="loading"><span class="spin" aria-hidden="true" />Loading {meta.name}</div>;
