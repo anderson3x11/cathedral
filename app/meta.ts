@@ -119,3 +119,19 @@ export function iconUrl(set: string, elem: string) {
 }
 
 export const COMING_SOON: string[] = [];
+
+// Battle party per game: a fixed lead (not a demon slot) plus `active` demons fighting, the rest in reserve.
+// Persona games: the protagonist's persona stock instead (12 at full capacity), no reserve.
+// Players can change the count on the Party page (older titles vary).
+const PARTY_LEAD: { [id: string]: [string, number] } = {
+  smt3: ['the Demi-fiend', 3], smt4: ['Flynn', 3], smt4f: ['Nanashi', 3], smt5: ['the Nahobino', 3], smt5v: ['the Nahobino', 3],
+  smtsj: ['the protagonist', 3], smtdsj: ['the protagonist', 3],
+  krch: ['Raidou', 1], rrch: ['Raidou', 2], krao: ['Raidou', 2],
+  sh2: ['Ringo and her allies (one demon each)', 4],
+  ds1: ['each team leader', 2], dso: ['each team leader', 2], ds2: ['each team leader', 2], ds2br: ['each team leader', 2],
+};
+export function partyShape(id: string): { persona: boolean; lead: string; active: number } {
+  const persona = GAMES.find(g => g.id === id)?.series === 'Persona';
+  const [lead, active] = PARTY_LEAD[id] || ['the protagonist', 3];
+  return { persona, lead, active: persona ? 12 : active };
+}
