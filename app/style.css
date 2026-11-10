@@ -388,6 +388,33 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .support dd { margin: 0; }
 .support dd.missing { color: var(--wk); font-weight: 600; }
 
+/* ---- playthrough sheet ---- */
+.sheet-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sheet-tools label.btn { cursor: pointer; }
+.sheet-summary { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; }
+.sheet-summary b { color: var(--ink); }
+.sheet-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 20px; align-items: start; }
+.sheet-grid .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.spoil { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.sheet-links select, .sheet-req select { min-height: 30px; padding: 2px 6px; }
+.cell-input { width: 100%; min-width: 90px; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 3px 6px; min-height: 28px; }
+.cell-input:hover { border-color: var(--line); }
+.cell-input:focus { border-color: var(--line-strong); background: var(--bg); outline: none; }
+.grid tr.met td:first-child { font-weight: 600; }
+.grid tr.maxed td { color: var(--dr); }
+.grid tr.maxed td:first-child { font-weight: 700; }
+.stat-ranks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.stat-ranks label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.stat-ranks select { font-weight: 400; min-height: 32px; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; align-items: start; }
+.check-group { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); padding: 8px 10px; box-shadow: var(--card-shadow); }
+.check-group h3 { margin-bottom: 4px; }
+.check-group h3 .muted { font-weight: 400; }
+.checks { list-style: none; margin: 0; padding: 0; }
+.checks label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 13px; }
+.checks label.done { color: var(--muted); text-decoration: line-through; }
+@media (max-width: 960px) { .sheet-grid { grid-template-columns: minmax(0, 1fr); } }
+
 /* ---- unlocks ---- */
 .unlock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 20px; align-items: start; }
 .unlock-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

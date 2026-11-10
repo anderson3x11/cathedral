@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'preact/hooks'
 import { ELEM_LABEL, ELEM_SHORT, RESIST_LABEL, RESIST_LONG, RESIST_RANK, GAMES, COMING_SOON, iconUrl, slugify, partyShape } from './meta';
 import { planSkills, maskToSkills, PlanNode, PlanResult } from './planner';
 import { demonArt, Art } from './art';
+import { SHEETS } from './sheets';
 
 type Eng = any;
 declare const __BUILD__: string;
@@ -124,7 +125,7 @@ function ThemeButton() {
 
 // ---------- routing ----------
 interface Route { game: string; view: string; arg?: string }
-const GAME_RE = new RegExp(`^(${GAMES.map(g => g.id).join('|')})(?:-(d|s|p)-(.+)|-(skills|planner|party|unlocks|chart))?$`);
+const GAME_RE = new RegExp(`^(${GAMES.map(g => g.id).join('|')})(?:-(d|s|p)-(.+)|-(skills|planner|party|unlocks|chart|playthrough))?$`);
 function parseHash(): Route {
   const raw = decodeURIComponent(location.hash.replace(/^#/, ''));
   const m = raw.match(GAME_RE);
@@ -1214,6 +1215,169 @@ function ChartView({ eng }: { eng: Eng }) {
   );
 }
 
+// ---------- playthrough sheet (v0.3) ----------
+// The player's run: social links, social stats, checklists, requests, equipment. Saved in this browser only;
+// export / import moves it between devices. Names stay hidden until met so the list does not spoil the story.
+const REQ_STATUS = ['Not started', 'In progress', 'Done'];
+function Playthrough({ eng }: { eng: Eng }) {
+  const id = eng.cfg.id;
+  const def = SHEETS[id];
+  const meta = gameMeta(id);
+  const [sheet, setSheet] = useState<any>(() => store.get(id + ':sheet', {}));
+  const [msg, setMsg] = useState('');
+  const save = (patch: any) => { const next = { ...sheet, ...patch }; setSheet(next); store.set(id + ':sheet', next); };
+  const links = sheet.links || {}, stats = sheet.stats || {}, checks = sheet.checks || {}, gear = sheet.gear || {};
+  const requests: { name: string; goal: string; status: number }[] = sheet.requests || [];
+  const setLink = (arcana: string, patch: any) => save({ links: { ...links, [arcana]: { ...(links[arcana] || {}), ...patch } } });
+  const rankOf = (a: string) => (links[a] && links[a].rank) || 0;
+  const maxed = def.links.filter(([a]) => rankOf(a) >= def.linkMax).length;
+  const started = def.links.filter(([a]) => rankOf(a) > 0).length;
+  const fileName = `cathedral-${id}-playthrough.json`;
+  const exportSheet = () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ game: id, sheet }, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const importSheet = (f?: File) => {
+    if (!f) { return; }
+    f.text().then(t => {
+      const data = JSON.parse(t);
+      if (!data || data.game !== id || typeof data.sheet !== 'object') { throw new Error('not a ' + meta.name + ' playthrough file'); }
+      setSheet(data.sheet); store.set(id + ':sheet', data.sheet); setMsg('Playthrough imported.');
+    }).catch(e => setMsg('Could not import: ' + (e.message || e)));
+  };
+  const reset = () => { if (confirm(`Erase your ${meta.name} playthrough sheet on this device?`)) { setSheet({}); store.set(id + ':sheet', {}); setMsg('Sheet cleared.'); } };
+
+  return (
+    <section class="view sheet">
+      <header class="view-head">
+        <div><h1>Playthrough</h1>
+          <p class="lede">Track your run: social links, stats, collectibles, requests and gear. Saved in this browser; export a file to keep it or move it to another device.</p></div>
+        <div class="sheet-tools">
+          <button class="btn" onClick={exportSheet}>Export</button>
+          <label class="btn">Import<input type="file" accept="application/json,.json" class="sr" onChange={e => importSheet((e.target as HTMLInputElement).files?.[0])} /></label>
+          <button class="btn subtle" onClick={reset}>Reset</button>
+        </div>
+      </header>
+      {msg && <p class="note">{msg}</p>}
+
+      <p class="sheet-summary">
+        <span><b>{maxed}</b> of {def.links.length} social links maxed</span>
+        <span><b>{started}</b> started</span>
+        {def.lists.map(l => { const all = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`)); return (
+          <span><b>{all.filter(k => checks[k]).length}</b> of {all.length} {l.title.toLowerCase()}</span>
+        ); })}
+      </p>
+
+      <div class="sheet-grid">
+        <section class="panel links-card">
+          <div class="unlock-head">
+            <h2>Social links</h2>
+            <label class="spoil"><input type="checkbox" checked={!!sheet.showNames} onChange={e => save({ showNames: (e.target as HTMLInputElement).checked })} /> Show names I haven't met</label>
+          </div>
+          <div class="tablewrap">
+            <table class="grid sheet-links">
+              <thead><tr><th>Arcana</th><th>Character</th><th>Rank</th><th>Notes</th></tr></thead>
+              <tbody>
+                {def.links.map(([arcana, who]) => {
+                  const r = rankOf(arcana);
+                  const known = r > 0 || sheet.showNames;
+                  return (
+                    <tr class={r >= def.linkMax ? 'maxed' : r > 0 ? 'met' : ''}>
+                      <td>{arcana}</td>
+                      <td>{known ? who : <span class="muted" title="Hidden until you meet them">???</span>}</td>
+                      <td><select aria-label={`${arcana} rank`} value={r} onChange={e => setLink(arcana, { rank: +(e.target as HTMLSelectElement).value })}>
+                        {Array.from({ length: def.linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? 'Not met' : i === def.linkMax ? 'Max' : i}</option>)}
+                      </select></td>
+                      <td><input class="cell-input" aria-label={`${arcana} notes`} placeholder="Days, gifts, answers…" value={(links[arcana] && links[arcana].notes) || ''} onInput={e => setLink(arcana, { notes: (e.target as HTMLInputElement).value })} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="col">
+          <section class="panel">
+            <h2>Social stats</h2>
+            <div class="stat-ranks">
+              {def.stats.map(st => (
+                <label>{st}
+                  <select value={stats[st] || 1} onChange={e => save({ stats: { ...stats, [st]: +(e.target as HTMLSelectElement).value } })}>
+                    {Array.from({ length: def.statRanks }, (_, i) => <option value={i + 1}>{i + 1 === def.statRanks ? `Rank ${i + 1} (max)` : `Rank ${i + 1}`}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Equipment</h2>
+            <div class="tablewrap">
+              <table class="grid sheet-gear">
+                <thead><tr><th>Character</th>{def.gear.slots.map(sl => <th>{sl}</th>)}</tr></thead>
+                <tbody>
+                  {def.gear.chars.map(c => (
+                    <tr><td>{c}</td>{def.gear.slots.map(sl => (
+                      <td><input class="cell-input" aria-label={`${c} ${sl}`} value={(gear[c] && gear[c][sl]) || ''} onInput={e => save({ gear: { ...gear, [c]: { ...(gear[c] || {}), [sl]: (e.target as HTMLInputElement).value } } })} /></td>
+                    ))}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {def.freeRequests && (
+            <section class="panel">
+              <div class="unlock-head"><h2>Requests</h2>
+                <button class="btn subtle" onClick={() => save({ requests: requests.concat([{ name: '', goal: '', status: 0 }]) })}>Add a request</button></div>
+              {requests.length === 0 ? <p class="empty">Add requests as you take them.</p> : (
+                <div class="tablewrap">
+                  <table class="grid sheet-req">
+                    <thead><tr><th>Name</th><th>Objective</th><th>Status</th><th><span class="sr">Remove</span></th></tr></thead>
+                    <tbody>
+                      {requests.map((rq, i) => {
+                        const set = (patch: any) => save({ requests: requests.map((x, j) => j === i ? { ...x, ...patch } : x) });
+                        return (
+                          <tr class={rq.status === 2 ? 'maxed' : ''}>
+                            <td><input class="cell-input" aria-label="Request name" value={rq.name} onInput={e => set({ name: (e.target as HTMLInputElement).value })} /></td>
+                            <td><input class="cell-input" aria-label="Objective" value={rq.goal} onInput={e => set({ goal: (e.target as HTMLInputElement).value })} /></td>
+                            <td><select aria-label="Status" value={rq.status} onChange={e => set({ status: +(e.target as HTMLSelectElement).value })}>{REQ_STATUS.map((st, k) => <option value={k}>{st}</option>)}</select></td>
+                            <td><button class="x" aria-label="Remove request" onClick={() => save({ requests: requests.filter((_, j) => j !== i) })}>×</button></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </div>
+
+      {def.lists.map(l => (
+        <section class="panel">
+          <h2>{l.title}</h2>
+          <div class="check-grid">
+            {l.groups.map(g => (
+              <div class="check-group">
+                <h3>{g.name} <span class="muted">{g.items.filter(it => checks[`${l.title}:${g.name}:${it}`]).length}/{g.items.length}</span></h3>
+                <ul class="checks">
+                  {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
+                    <li><label class={checks[k] ? 'done' : ''}><input type="checkbox" checked={!!checks[k]} onChange={e => save({ checks: { ...checks, [k]: (e.target as HTMLInputElement).checked } })} /> {it}</label></li>
+                  ); })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </section>
+  );
+}
+
 // ---------- unlocks ----------
 function Unlocks({ eng, onChange }: { eng: Eng; onChange: () => void }) {
   const groups = eng.unlockGroups;
@@ -1337,6 +1501,7 @@ function Home() {
                     <a href={href({ game: g.id, view: 'skills' })}>Skills</a>
                     {!g.noPlanner && <a href={href({ game: g.id, view: 'planner' })}>Planner</a>}
                     <a href={href({ game: g.id, view: 'party' })}>Party</a>
+                    {SHEETS[g.id] && <a href={href({ game: g.id, view: 'playthrough' })}>Playthrough</a>}
                   </span>
                 </li>
               ))}
@@ -1400,11 +1565,12 @@ function App() {
     { view: 'planner', label: 'Skill planner' },
     { view: 'party', label: 'Party' + (party.length ? ` · ${party.length}` : '') },
     { view: 'chart', label: 'Fusion chart' },
+    { view: 'playthrough', label: 'Playthrough' },
     { view: 'unlocks', label: 'Unlocks' },
   ];
   const active = route.view === 'demon' ? 'list' : route.view === 'skill' ? 'skills' : route.view;
   const meta = gameMeta(route.game);
-  const navShown = nav.filter(n => !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'chart' && eng && !chartRaces(eng).length) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
+  const navShown = nav.filter(n => !(n.view === 'playthrough' && !SHEETS[route.game]) && !(n.view === 'planner' && meta.noPlanner) && !(n.view === 'chart' && eng && !chartRaces(eng).length) && !(n.view === 'unlocks' && eng && !eng.cfg.unlocks.length));
   useEffect(() => { // sticky table headers sit right under the top bar, whose height varies
     const t = document.querySelector('.top') as HTMLElement | null;
     if (!t) { return; }
@@ -1414,7 +1580,7 @@ function App() {
     return () => window.removeEventListener('resize', set);
   });
   useEffect(() => {
-    const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks', chart: 'Fusion chart' };
+    const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks', chart: 'Fusion chart', playthrough: 'Playthrough' };
     const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
     document.title = route.view === 'home' ? 'Cathedral: Megaten Fusion Calculator for SMT, Persona and more' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
   }, [route, eng]);
@@ -1437,6 +1603,7 @@ function App() {
     else if (route.view === 'planner') { body = meta.noPlanner ? <div class="view"><p class="note">{meta.name} has fixed skill sets, so there is nothing to plan.</p></div> : <Planner eng={eng} party={party} setParty={setParty} />; }
     else if (route.view === 'party') { body = <Party eng={eng} party={party} setParty={setParty} shared={route.arg} />; }
     else if (route.view === 'chart') { body = <ChartView eng={eng} />; }
+    else if (route.view === 'playthrough') { body = SHEETS[route.game] ? <Playthrough eng={eng} /> : <div class="view"><p class="note">No playthrough sheet for {meta.name} yet.</p></div>; }
     else if (route.view === 'unlocks') { body = <Unlocks eng={eng} onChange={() => setRev(r => r + 1)} />; }
     else { body = <Compendium eng={eng} />; }
   }
