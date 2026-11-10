@@ -10,7 +10,7 @@ export interface SheetDef {
   statRanks: number;
   lists: Checklist[];            // fixed checklists (books, locations, games, requests...)
   freeRequests: boolean;         // players add their own requests (no fixed list for this game yet)
-  gear: { chars: string[]; slots: string[] };
+  gear: { lead: string; slots: string[] };  // only the protagonist is listed: party members are added by the player (no spoilers)
 }
 
 export const SHEETS: { [id: string]: SheetDef } = {
@@ -64,7 +64,7 @@ export const SHEETS: { [id: string]: SheetDef } = {
       ] },
     ],
     freeRequests: false,
-    gear: { chars: ['Joker', 'Ryuji', 'Morgana', 'Ann', 'Yusuke', 'Makoto', 'Haru', 'Futaba', 'Akechi', 'Sumire'], slots: ['Melee', 'Gun', 'Protector', 'Accessory'] },
+    gear: { lead: 'Joker', slots: ['Melee', 'Gun', 'Protector', 'Accessory'] },
   },
   p4g: {
     links: [
@@ -79,7 +79,7 @@ export const SHEETS: { [id: string]: SheetDef } = {
     statRanks: 5,
     lists: [],
     freeRequests: true,
-    gear: { chars: ['Protagonist', 'Yosuke', 'Chie', 'Yukiko', 'Kanji', 'Teddie', 'Naoto'], slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
+    gear: { lead: 'Protagonist', slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
   },
   p3r: {
     links: [
@@ -94,6 +94,6 @@ export const SHEETS: { [id: string]: SheetDef } = {
     statRanks: 6,
     lists: [],
     freeRequests: true,
-    gear: { chars: ['Protagonist', 'Yukari', 'Junpei', 'Akihiko', 'Mitsuru', 'Aigis', 'Ken', 'Koromaru', 'Shinjiro'], slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
+    gear: { lead: 'Protagonist', slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
   },
 };

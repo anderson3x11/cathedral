@@ -914,19 +914,22 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
   const elems: string[] = eng.cfg.resistElems;
   const statNames: string[] = eng.cfg.baseStats;
   const allSkills = useMemo(() => eng.skillNames().slice().sort(), [eng]);
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => { ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [member.name]);
+  // Opens as a modal dialog over the page; Esc, Done or a click on the backdrop closes it.
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const dlg = ref.current; if (dlg && !dlg.open) { dlg.showModal(); } }, []);
+  const close = () => ref.current?.close();
   const skills = member.skills || d.skills.map((x: any) => x.name);
   const set = (patch: Partial<Member>) => onChange({ ...member, ...patch });
   const toggle = (n: string) => set({ skills: skills.includes(n) ? skills.filter((x: string) => x !== n) : skills.concat([n]) });
   const stats: number[] = member.stats || d.stats;
   return (
-    <section class="panel editor" ref={ref as any}>
+    <dialog class="editor-dialog" ref={ref} onClose={onClose} onClick={e => { if (e.target === ref.current) { close(); } }}>
+    <section class="panel editor">
       <div class="editor-head">
         <h2>Edit {member.name}</h2>
         <span class="muted">Match your playthrough: inherited skills, resistances from items or passives, stat boosts.</span>
         <button class="btn subtle" onClick={() => onChange({ name: member.name, reserve: member.reserve })}>Reset to default</button>
-        <button class="btn" onClick={onClose}>Done</button>
+        <button class="btn primary" onClick={close}>Done</button>
       </div>
       <div class="editor-grid">
         <div class="field">
@@ -976,6 +979,7 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
         </div>
       </div>
     </section>
+    </dialog>
   );
 }
 
@@ -1047,9 +1051,9 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
               <td><DemonLink eng={eng} name={v.m.name} />{v.custom && <span class="tag small" title="Changed from the default">custom</span>}</td>
               {v.resists.map((r: string, i: number) => <td class={'rescol' + (v.m.resists && v.m.resists[elems[i]] ? ' changed' : '')}><ResistCell code={r} blank /></td>)}
               <td class="tagcol"><span class="row-acts">
-                <button class="x" onClick={() => setEditing(editing === v.m.name ? '' : v.m.name)}>{editing === v.m.name ? 'Close' : 'Edit'}</button>
-                {!shape.persona && <button class="x" disabled={v.m.reserve && fighting.length >= slots} title={v.m.reserve && fighting.length >= slots ? 'The battle party is full' : ''} onClick={() => move(v.m.name)}>{v.m.reserve ? 'To battle' : 'To reserve'}</button>}
-                <button class="x" onClick={() => remove(v.m.name)}>Remove</button>
+                <button class="mini edit" onClick={() => setEditing(v.m.name)}>Edit</button>
+                {!shape.persona && <button class="mini" disabled={v.m.reserve && fighting.length >= slots} title={v.m.reserve && fighting.length >= slots ? 'The battle party is full' : ''} onClick={() => move(v.m.name)}>{v.m.reserve ? 'To battle' : 'To reserve'}</button>}
+                <button class="mini danger" aria-label={`Remove ${v.m.name}`} onClick={() => remove(v.m.name)}>Remove</button>
               </span></td>
             </tr>
           ))}
@@ -1219,23 +1223,26 @@ function ChartView({ eng }: { eng: Eng }) {
 // The player's run: social links, social stats, checklists, requests, equipment. Saved in this browser only;
 // export / import moves it between devices. Names stay hidden until met so the list does not spoil the story.
 const REQ_STATUS = ['Not started', 'In progress', 'Done'];
+// Laid out like a spreadsheet: compact cards side by side, long lists scroll inside their card, so the
+// whole run fits on one screen. Phones show one card at a time with tabs.
 function Playthrough({ eng }: { eng: Eng }) {
   const id = eng.cfg.id;
   const def = SHEETS[id];
   const meta = gameMeta(id);
   const [sheet, setSheet] = useState<any>(() => store.get(id + ':sheet', {}));
+  const [tab, setTab] = useState('links');
   const [msg, setMsg] = useState('');
   const save = (patch: any) => { const next = { ...sheet, ...patch }; setSheet(next); store.set(id + ':sheet', next); };
-  const links = sheet.links || {}, stats = sheet.stats || {}, checks = sheet.checks || {}, gear = sheet.gear || {};
-  const requests: { name: string; goal: string; status: number }[] = sheet.requests || [];
-  const setLink = (arcana: string, patch: any) => save({ links: { ...links, [arcana]: { ...(links[arcana] || {}), ...patch } } });
+  const links = sheet.links || {}, stats = sheet.stats || {}, checks = sheet.checks || {};
+  const requests: { name: string; status: number }[] = sheet.requests || [];
+  const gear: { who: string; slots: { [k: string]: string } }[] = Array.isArray(sheet.gear) ? sheet.gear : [{ who: def.gear.lead, slots: {} }];
   const rankOf = (a: string) => (links[a] && links[a].rank) || 0;
   const maxed = def.links.filter(([a]) => rankOf(a) >= def.linkMax).length;
-  const started = def.links.filter(([a]) => rankOf(a) > 0).length;
-  const fileName = `cathedral-${id}-playthrough.json`;
+  const setGear = (rows: typeof gear) => save({ gear: rows });
+
   const exportSheet = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ game: id, sheet }, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    const el = document.createElement('a'); el.href = url; el.download = `cathedral-${id}-playthrough.json`; el.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const importSheet = (f?: File) => {
@@ -1248,132 +1255,101 @@ function Playthrough({ eng }: { eng: Eng }) {
   };
   const reset = () => { if (confirm(`Erase your ${meta.name} playthrough sheet on this device?`)) { setSheet({}); store.set(id + ':sheet', {}); setMsg('Sheet cleared.'); } };
 
+  const cards: { k: string; title: string; count?: string; body: any }[] = [];
+  cards.push({ k: 'links', title: 'Social links', count: `${maxed}/${def.links.length} max`, body: (
+    <Fragment>
+      <label class="srow spoil"><input type="checkbox" checked={!!sheet.showNames} onChange={e => save({ showNames: (e.target as HTMLInputElement).checked })} /> Show names I haven't met</label>
+      {def.links.map(([arcana, who]) => {
+        const r = rankOf(arcana);
+        return (
+          <div class={'srow link' + (r >= def.linkMax ? ' maxed' : r > 0 ? ' met' : '')}>
+            <span class="arc">{arcana}</span>
+            <span class="who">{r > 0 || sheet.showNames ? who : <span class="muted" title="Hidden until you meet them">???</span>}</span>
+            <select aria-label={`${arcana} rank`} value={r} onChange={e => save({ links: { ...links, [arcana]: { rank: +(e.target as HTMLSelectElement).value } } })}>
+              {Array.from({ length: def.linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? '–' : i === def.linkMax ? 'Max' : i}</option>)}
+            </select>
+          </div>
+        );
+      })}
+    </Fragment>
+  ) });
+  cards.push({ k: 'stats', title: 'Social stats', body: def.stats.map(st => (
+    <div class={'srow stat' + ((stats[st] || 1) >= def.statRanks ? ' maxed' : '')}>
+      <span>{st}</span>
+      <select aria-label={`${st} rank`} value={stats[st] || 1} onChange={e => save({ stats: { ...stats, [st]: +(e.target as HTMLSelectElement).value } })}>
+        {Array.from({ length: def.statRanks }, (_, i) => <option value={i + 1}>{i + 1 === def.statRanks ? 'Max' : `Rank ${i + 1}`}</option>)}
+      </select>
+    </div>
+  )) });
+  def.lists.forEach((l, li) => {
+    const keys = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`));
+    cards.push({ k: 'list' + li, title: l.title, count: `${keys.filter(k => checks[k]).length}/${keys.length}`, body: l.groups.map(g => (
+      <Fragment>
+        {l.groups.length > 1 && <div class="sgroup">{g.name}</div>}
+        {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
+          <label class={'srow check' + (checks[k] ? ' done' : '')}><input type="checkbox" checked={!!checks[k]} onChange={e => save({ checks: { ...checks, [k]: (e.target as HTMLInputElement).checked } })} /> {it}</label>
+        ); })}
+      </Fragment>
+    )) });
+  });
+  if (def.freeRequests) {
+    cards.push({ k: 'req', title: 'Requests', count: `${requests.filter(r => r.status === 2).length}/${requests.length}`, body: (
+      <Fragment>
+        {requests.map((rq, i) => {
+          const set = (patch: any) => save({ requests: requests.map((x, j) => j === i ? { ...x, ...patch } : x) });
+          return (
+            <div class={'srow req' + (rq.status === 2 ? ' maxed' : '')}>
+              <input class="cell-input" aria-label="Request" placeholder="Request name" value={rq.name} onInput={e => set({ name: (e.target as HTMLInputElement).value })} />
+              <select aria-label="Status" value={rq.status} onChange={e => set({ status: +(e.target as HTMLSelectElement).value })}>{REQ_STATUS.map((st, k) => <option value={k}>{st}</option>)}</select>
+              <button class="x" aria-label="Remove request" onClick={() => save({ requests: requests.filter((_, j) => j !== i) })}>×</button>
+            </div>
+          );
+        })}
+        <div class="srow"><button class="mini" onClick={() => save({ requests: requests.concat([{ name: '', status: 0 }]) })}>Add a request</button></div>
+      </Fragment>
+    ) });
+  }
+  cards.push({ k: 'gear', title: 'Equipment', body: (
+    <Fragment>
+      {gear.map((g, i) => (
+        <div class="gear-block">
+          <div class="gear-who">
+            <input class="cell-input" aria-label="Character" value={g.who} placeholder="Party member" onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, who: (e.target as HTMLInputElement).value } : x))} />
+            {i > 0 && <button class="x" aria-label="Remove member" onClick={() => setGear(gear.filter((_, j) => j !== i))}>×</button>}
+          </div>
+          <div class="gear-slots">
+            {def.gear.slots.map(sl => <input class="cell-input" aria-label={`${g.who} ${sl}`} placeholder={sl} value={g.slots[sl] || ''}
+              onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, slots: { ...x.slots, [sl]: (e.target as HTMLInputElement).value } } : x))} />)}
+          </div>
+        </div>
+      ))}
+      <div class="srow"><button class="mini" onClick={() => setGear(gear.concat([{ who: '', slots: {} }]))}>Add a party member</button></div>
+    </Fragment>
+  ) });
+
   return (
     <section class="view sheet">
       <header class="view-head">
         <div><h1>Playthrough</h1>
-          <p class="lede">Track your run: social links, stats, collectibles, requests and gear. Saved in this browser; export a file to keep it or move it to another device.</p></div>
+          <p class="lede">Your run at a glance. Saved in this browser; export a file to keep it or move it to another device.</p></div>
         <div class="sheet-tools">
-          <button class="btn" onClick={exportSheet}>Export</button>
-          <label class="btn">Import<input type="file" accept="application/json,.json" class="sr" onChange={e => importSheet((e.target as HTMLInputElement).files?.[0])} /></label>
-          <button class="btn subtle" onClick={reset}>Reset</button>
+          <button class="mini" onClick={exportSheet}>Export</button>
+          <label class="mini">Import<input type="file" accept="application/json,.json" class="sr" onChange={e => importSheet((e.target as HTMLInputElement).files?.[0])} /></label>
+          <button class="mini danger" onClick={reset}>Reset</button>
         </div>
       </header>
       {msg && <p class="note">{msg}</p>}
-
-      <p class="sheet-summary">
-        <span><b>{maxed}</b> of {def.links.length} social links maxed</span>
-        <span><b>{started}</b> started</span>
-        {def.lists.map(l => { const all = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`)); return (
-          <span><b>{all.filter(k => checks[k]).length}</b> of {all.length} {l.title.toLowerCase()}</span>
-        ); })}
-      </p>
-
-      <div class="sheet-grid">
-        <section class="panel links-card">
-          <div class="unlock-head">
-            <h2>Social links</h2>
-            <label class="spoil"><input type="checkbox" checked={!!sheet.showNames} onChange={e => save({ showNames: (e.target as HTMLInputElement).checked })} /> Show names I haven't met</label>
-          </div>
-          <div class="tablewrap">
-            <table class="grid sheet-links">
-              <thead><tr><th>Arcana</th><th>Character</th><th>Rank</th><th>Notes</th></tr></thead>
-              <tbody>
-                {def.links.map(([arcana, who]) => {
-                  const r = rankOf(arcana);
-                  const known = r > 0 || sheet.showNames;
-                  return (
-                    <tr class={r >= def.linkMax ? 'maxed' : r > 0 ? 'met' : ''}>
-                      <td>{arcana}</td>
-                      <td>{known ? who : <span class="muted" title="Hidden until you meet them">???</span>}</td>
-                      <td><select aria-label={`${arcana} rank`} value={r} onChange={e => setLink(arcana, { rank: +(e.target as HTMLSelectElement).value })}>
-                        {Array.from({ length: def.linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? 'Not met' : i === def.linkMax ? 'Max' : i}</option>)}
-                      </select></td>
-                      <td><input class="cell-input" aria-label={`${arcana} notes`} placeholder="Days, gifts, answers…" value={(links[arcana] && links[arcana].notes) || ''} onInput={e => setLink(arcana, { notes: (e.target as HTMLInputElement).value })} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <div class="col">
-          <section class="panel">
-            <h2>Social stats</h2>
-            <div class="stat-ranks">
-              {def.stats.map(st => (
-                <label>{st}
-                  <select value={stats[st] || 1} onChange={e => save({ stats: { ...stats, [st]: +(e.target as HTMLSelectElement).value } })}>
-                    {Array.from({ length: def.statRanks }, (_, i) => <option value={i + 1}>{i + 1 === def.statRanks ? `Rank ${i + 1} (max)` : `Rank ${i + 1}`}</option>)}
-                  </select>
-                </label>
-              ))}
-            </div>
-          </section>
-
-          <section class="panel">
-            <h2>Equipment</h2>
-            <div class="tablewrap">
-              <table class="grid sheet-gear">
-                <thead><tr><th>Character</th>{def.gear.slots.map(sl => <th>{sl}</th>)}</tr></thead>
-                <tbody>
-                  {def.gear.chars.map(c => (
-                    <tr><td>{c}</td>{def.gear.slots.map(sl => (
-                      <td><input class="cell-input" aria-label={`${c} ${sl}`} value={(gear[c] && gear[c][sl]) || ''} onInput={e => save({ gear: { ...gear, [c]: { ...(gear[c] || {}), [sl]: (e.target as HTMLInputElement).value } } })} /></td>
-                    ))}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {def.freeRequests && (
-            <section class="panel">
-              <div class="unlock-head"><h2>Requests</h2>
-                <button class="btn subtle" onClick={() => save({ requests: requests.concat([{ name: '', goal: '', status: 0 }]) })}>Add a request</button></div>
-              {requests.length === 0 ? <p class="empty">Add requests as you take them.</p> : (
-                <div class="tablewrap">
-                  <table class="grid sheet-req">
-                    <thead><tr><th>Name</th><th>Objective</th><th>Status</th><th><span class="sr">Remove</span></th></tr></thead>
-                    <tbody>
-                      {requests.map((rq, i) => {
-                        const set = (patch: any) => save({ requests: requests.map((x, j) => j === i ? { ...x, ...patch } : x) });
-                        return (
-                          <tr class={rq.status === 2 ? 'maxed' : ''}>
-                            <td><input class="cell-input" aria-label="Request name" value={rq.name} onInput={e => set({ name: (e.target as HTMLInputElement).value })} /></td>
-                            <td><input class="cell-input" aria-label="Objective" value={rq.goal} onInput={e => set({ goal: (e.target as HTMLInputElement).value })} /></td>
-                            <td><select aria-label="Status" value={rq.status} onChange={e => set({ status: +(e.target as HTMLSelectElement).value })}>{REQ_STATUS.map((st, k) => <option value={k}>{st}</option>)}</select></td>
-                            <td><button class="x" aria-label="Remove request" onClick={() => save({ requests: requests.filter((_, j) => j !== i) })}>×</button></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          )}
-        </div>
+      <div class="sheet-tabs" role="tablist" aria-label="Sheet sections">
+        {cards.map(c => <button role="tab" aria-selected={tab === c.k} class={tab === c.k ? 'on' : ''} onClick={() => setTab(c.k)}>{c.title}</button>)}
       </div>
-
-      {def.lists.map(l => (
-        <section class="panel">
-          <h2>{l.title}</h2>
-          <div class="check-grid">
-            {l.groups.map(g => (
-              <div class="check-group">
-                <h3>{g.name} <span class="muted">{g.items.filter(it => checks[`${l.title}:${g.name}:${it}`]).length}/{g.items.length}</span></h3>
-                <ul class="checks">
-                  {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
-                    <li><label class={checks[k] ? 'done' : ''}><input type="checkbox" checked={!!checks[k]} onChange={e => save({ checks: { ...checks, [k]: (e.target as HTMLInputElement).checked } })} /> {it}</label></li>
-                  ); })}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+      <div class="sheet-board">
+        {cards.map(c => (
+          <section class={'sheet-card' + (tab === c.k ? ' on' : '')}>
+            <header class="sheet-card-h"><h2>{c.title}</h2>{c.count && <span class="muted">{c.count}</span>}</header>
+            <div class="sheet-body">{c.body}</div>
+          </section>
+        ))}
+      </div>
     </section>
   );
 }
