@@ -363,6 +363,13 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .res-edit select, .stat-edit input { min-height: 30px; padding: 2px 6px; width: 100%; }
 .party tfoot th, .party tfoot td { background: var(--sunk); font-size: 12px; border-bottom: 0; }
 .cnt { font-family: var(--font-mono); font-size: 13px; color: var(--faint); }
+.team-res { margin-top: 4px; }
+.team-res .strip-row { background: var(--bg); border-radius: var(--r); }
+.tcount { font-size: 12px; white-space: nowrap; }
+.tcount.none { color: var(--faint); }
+.tcount.meh { color: var(--ink); }
+.tcount.bad { color: var(--wk); font-weight: 700; }
+.tcount.good { color: var(--dr); font-weight: 600; }
 .cnt.bad { color: var(--wk); font-weight: 700; }
 .cnt.meh { color: var(--ink); }
 .cnt.good { color: var(--dr); font-weight: 600; }

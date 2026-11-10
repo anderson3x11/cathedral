@@ -1036,7 +1036,7 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
     .sort((a: any, b: any) => Math.abs(a.lvl - analysis.avg) - Math.abs(b.lvl - analysis.avg))
     .slice(0, 4);
 
-  const table = (list: any[], foot: boolean) => (
+  const table = (list: any[]) => (
     <div class="tablewrap">
       <table class="grid party">
         <thead><tr><th>{meta.unit === 'demon' ? 'Demon' : 'Persona'}</th>{elems.map(e => <th class="rescol"><Elem e={e} /></th>)}<th class="tagcol"><span class="sr">Actions</span></th></tr></thead>
@@ -1053,16 +1053,7 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
             </tr>
           ))}
         </tbody>
-        {foot && list.length > 0 && <tfoot>
-          <tr class="sum">
-            <th scope="row">Weak</th>
-            {analysis.weakCount.map(c => <td class={`rescol cnt ${c >= 2 ? 'bad' : c === 1 ? 'meh' : ''}`}>{c || '·'}</td>)}<td />
-          </tr>
-          <tr class="sum">
-            <th scope="row">Resist or better</th>
-            {analysis.covered.map(c => <td class={`rescol cnt ${c ? 'good' : ''}`}>{c || '·'}</td>)}<td />
-          </tr>
-        </tfoot>}
+
       </table>
     </div>
   );
@@ -1098,13 +1089,30 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
         {adding && !full && <DemonList eng={eng} id="party-add" exclude={party.map(m => m.name)} placeholder={`Type a ${meta.unit} name to add`} onPick={n => setParty(addMember(party, { name: n }, id))} />}
         {team.length === 0
           ? (!adding && <p class="empty">No one here yet. Add {meta.units} above, from any {meta.unit} page, or from a skill planner result.</p>)
-          : table(team, true)}
+          : table(team)}
+        {team.length > 0 && (
+          <div class="strip team-res">
+            <h3>Team resistances <span class="muted">({shape.persona ? 'whole stock' : 'battle party'})</span></h3>
+            <div class="strip-row" style={{ gridTemplateColumns: `repeat(${elems.length}, minmax(0, 1fr))` }}>
+              {elems.map((e, i) => {
+                const weak = analysis.weakCount[i], res = analysis.covered[i];
+                return (
+                  <div class="strip-cell">
+                    <span class="strip-k"><Elem e={e} /></span>
+                    <span class={`tcount ${weak >= 2 ? 'bad' : weak ? 'meh' : 'none'}`} title={`${weak} weak to ${ELEM_LABEL[e] || e}`}>{weak ? `${weak} weak` : 'no weak'}</span>
+                    <span class={`tcount ${res ? 'good' : 'none'}`} title={`${res} resist ${ELEM_LABEL[e] || e} or better`}>{res ? `${res} resist` : '·'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       {!shape.persona && bench.length > 0 && (
         <section class="panel">
           <h2>Reserve <span class="muted">{bench.length}</span></h2>
-          {table(bench, false)}
+          {table(bench)}
         </section>
       )}
 
