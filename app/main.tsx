@@ -1255,7 +1255,7 @@ function Playthrough({ eng }: { eng: Eng }) {
   };
   const reset = () => { if (confirm(`Erase your ${meta.name} playthrough sheet on this device?`)) { setSheet({}); store.set(id + ':sheet', {}); setMsg('Sheet cleared.'); } };
 
-  const cards: { k: string; title: string; count?: string; pct?: number; body: any }[] = [];
+  const cards: { k: string; title: string; count?: string; pct?: number; wide?: boolean; body: any }[] = [];
   const statSum = def.stats.reduce((a, st) => a + (stats[st] || 1), 0);
   const pickCard = (k: string) => { setTab(k); document.getElementById('card-' + k)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
   cards.push({ k: 'links', title: 'Social links', count: `${maxed}/${def.links.length} max`, pct: maxed / def.links.length, body: (
@@ -1282,7 +1282,7 @@ function Playthrough({ eng }: { eng: Eng }) {
     const cur = stats[st] || 1;
     return (
       <div class={'srow stat' + (cur >= def.statRanks ? ' maxed' : '')}>
-        <span>{st}</span>
+        <span class="st-name">{st}</span>
         <span class="pips" role="group" aria-label={`${st} rank`}>
           {Array.from({ length: def.statRanks }, (_, i) => (
             <button class={i < cur ? 'on' : ''} aria-label={`${st} rank ${i + 1}`} aria-pressed={i < cur} onClick={() => save({ stats: { ...stats, [st]: i + 1 } })} />
@@ -1295,7 +1295,7 @@ function Playthrough({ eng }: { eng: Eng }) {
   def.lists.forEach((l, li) => {
     const keys = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`));
     const done = keys.filter(k => checks[k]).length;
-    cards.push({ k: 'list' + li, title: l.title, count: `${done}/${keys.length}`, pct: done / keys.length, body: l.groups.map(g => (
+    cards.push({ k: 'list' + li, title: l.title, count: `${done}/${keys.length}`, pct: done / keys.length, wide: keys.length > 30, body: l.groups.map(g => (
       <div class={l.groups.length > 1 ? 'sgroup-box' : 'sgroup-flat'}>
         {l.groups.length > 1 && <div class="sgroup">{g.name} <span class="muted">{g.items.filter(it => checks[`${l.title}:${g.name}:${it}`]).length}/{g.items.length}</span></div>}
         {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
@@ -1338,10 +1338,20 @@ function Playthrough({ eng }: { eng: Eng }) {
     </Fragment>
   ) });
 
+  // Packs the board like a masonry wall: each card spans as many 8px grid rows as its real height needs.
+  const boardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board || typeof ResizeObserver === 'undefined') { return; }
+    const fit = (el: HTMLElement) => { el.style.gridRowEnd = `span ${Math.ceil((el.getBoundingClientRect().height + 16) / 8)}`; };
+    const ro = new ResizeObserver(entries => entries.forEach(e => fit(e.target as HTMLElement)));
+    Array.from(board.children).forEach(el => ro.observe(el));
+    return () => ro.disconnect();
+  }, [id, cards.length]);
   const card = (c: typeof cards[0], body = '') => (
-    <section id={'card-' + c.k} class={'sheet-card' + (tab === c.k ? ' on' : '')}>
+    <section id={'card-' + c.k} class={'sheet-card' + (c.wide ? ' wide' : '') + (tab === c.k ? ' on' : '')}>
       <header class="sheet-card-h"><h2>{c.title}</h2>{c.count && <span class="muted">{c.count}</span>}</header>
-      <div class={('sheet-body ' + body).trim()}>{c.body}</div>
+      <div class={('sheet-body ' + (c.wide ? 'cols2 ' : '') + body).trim()}>{c.body}</div>
     </section>
   );
 
@@ -1365,7 +1375,7 @@ function Playthrough({ eng }: { eng: Eng }) {
           </button>
         ))}
       </div>
-      <div class="sheet-board">{cards.filter(c => c.k !== 'gear').map(c => card(c))}</div>
+      <div class="sheet-board" ref={boardRef}>{cards.filter(c => c.k !== 'gear').map(c => card(c))}</div>
       {cards.filter(c => c.k === 'gear').map(c => card(c))}
     </section>
   );
