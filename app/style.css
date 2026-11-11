@@ -378,8 +378,8 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .team-res .strip-row { background: var(--bg); border-radius: var(--r); }
 .tcount { font-size: 12px; white-space: nowrap; }
 .tcount.none { color: var(--faint); }
-.tcount.meh { color: var(--ink); }
-.tcount.bad { color: var(--wk); font-weight: 700; }
+.tcount.meh { color: var(--wk); font-weight: 600; }
+.tcount.bad { color: var(--wk); background: var(--wk-bg); font-weight: 700; padding: 0 6px; border-radius: 4px; }
 .tcount.good { color: var(--dr); font-weight: 600; }
 .cnt.bad { color: var(--wk); font-weight: 700; }
 .cnt.meh { color: var(--ink); }
