@@ -165,6 +165,15 @@ function planHandoff(eng: Eng, name: string, want: string[]) {
   store.set(eng.cfg.id + ':planWant', want);
 }
 const capFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+// Skills that sit outside the skill slots in game: innate skills and traits, and gauge skills (Magatsuhi, Periapt).
+const takesSlot = (eng: Eng, n: string) => { const k = eng.skill(n); return !k || !(k.element === 'inn' || k.element === 'tra' || k.cost === 'Gauge'); };
+const FREE_LABELS = ['Innate', 'Trait', 'Magatsuhi', 'Periapt'];
+function freeLabel(eng: Eng, d: any, n: string) {
+  const own = d && d.skills.find((k: any) => k.name === n);
+  if (own && FREE_LABELS.includes(own.label)) { return own.label; }
+  const k = eng.skill(n);
+  return k?.element === 'inn' ? 'Innate' : k?.element === 'tra' ? 'Trait' : 'Gauge';
+}
 
 // "?" after a heading; the bubble opens on hover, keyboard focus or tap.
 // It uses the same floating bubble as every title, so it never widens the page near the right edge.
@@ -303,13 +312,14 @@ function DemonList({ eng, exclude, onPick, id, placeholder }: { eng: Eng; exclud
 
 // Search box with live skill results (nothing listed until you type); click a result to add or remove it. `why` explains a skill that cannot be used.
 function SkillPick({ eng, names, chosen, max, id, why, onToggle }: { eng: Eng; names: string[]; chosen: string[]; max: number; id: string; why?: (n: string) => string; onToggle: (n: string) => void }) {
+  // Innate, trait and gauge skills don't take a slot, so they never count toward `max` and stay pickable when full.
   const [q, setQ] = useState('');
   const [el, setEl] = useState('');
   const all = useMemo(() => names.map(n => eng.skill(n)).filter(Boolean), [eng, names]);
   const elems = useMemo(() => Array.from(new Set(all.map((k: any) => k.element))) as string[], [all]);
   const t = q.trim().toLowerCase();
   const rows = !t ? [] : all.filter((k: any) => (!el || k.element === el) && (k.name.toLowerCase().includes(t) || k.effect.toLowerCase().includes(t)));
-  const full = chosen.length >= max;
+  const full = chosen.filter(n => takesSlot(eng, n)).length >= max;
   return (
     <div class="pick">
       <div class="pick-tools">
@@ -324,7 +334,7 @@ function SkillPick({ eng, names, chosen, max, id, why, onToggle }: { eng: Eng; n
           const on = chosen.includes(k.name);
           const no = !on && why ? why(k.name) : '';
           return (
-            <li><button type="button" class={on ? 'on' : no ? 'blocked' : ''} aria-pressed={on} disabled={!on && (full || !!no)} title={k.effect} onClick={() => { onToggle(k.name); setQ(''); }}>
+            <li><button type="button" class={on ? 'on' : no ? 'blocked' : ''} aria-pressed={on} disabled={!on && ((full && takesSlot(eng, k.name)) || !!no)} title={k.effect} onClick={() => { onToggle(k.name); setQ(''); }}>
               <Elem e={k.element} /><span class="pk-name">{k.name}</span><span class="pk-meta">{k.cost}</span>
               <span class="pk-sub">{no || k.effect}</span>
             </button></li>
@@ -981,9 +991,10 @@ function Planner({ eng, party, setParty }: { eng: Eng; party: Member[]; setParty
   const toggleSkill = (n: string) => setSkills(skills.includes(n) ? skills.filter(x => x !== n) : skills.concat([n]));
   // The finished demon joins the party with the planned skills plus the ones it starts with.
   const addToParty = (p: PlanNode, i: number) => {
-    const base = td.skills.filter((k: any) => k.level < 2).map((k: any) => k.name);
+    const base = td.skills.filter((k: any) => k.level < 2 && takesSlot(eng, k.name)).map((k: any) => k.name);
+    const free = td.skills.filter((k: any) => !takesSlot(eng, k.name)).map((k: any) => k.name);
     const got = maskToSkills(p.mask, result!.skills);
-    setParty(addMember(party, { name: target, skills: Array.from(new Set(got.concat(base))).slice(0, slots) }, id));
+    setParty(addMember(party, { name: target, skills: Array.from(new Set(got.concat(base))).slice(0, slots).concat(free) }, id));
     setAdded(i);
   };
 
@@ -1096,6 +1107,9 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
   const close = () => ref.current?.close();
   const skills = member.skills || d.skills.map((x: any) => x.name);
   const passive = passiveResists(eng, skills);
+  const maxSlots = eng.cfg.maxSkillSlots || 8;
+  const slotSkills = skills.filter((n: string) => takesSlot(eng, n));
+  const freeSkills = skills.filter((n: string) => !takesSlot(eng, n));
   const set = (patch: Partial<Member>) => onChange({ ...member, ...patch });
   const toggle = (n: string) => set({ skills: skills.includes(n) ? skills.filter((x: string) => x !== n) : skills.concat([n]) });
   const stats: number[] = member.stats || d.stats;
@@ -1112,13 +1126,17 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
       </div>
       <div class="editor-grid">
         <div class="field">
-          <h3>Skills <span class="muted">{skills.length > (eng.cfg.maxSkillSlots || 8)
-            ? `(${skills.length} learnable, the game keeps ${eng.cfg.maxSkillSlots || 8}: remove the ones you dropped)`
-            : `(${skills.length} of ${eng.cfg.maxSkillSlots || 8})`}</span></h3>
-          {skills.length > 0 && <ul class="chips">
-            {skills.map((n: string) => <li class="chip"><Elem e={eng.skill(n)?.element} /> {n}<button aria-label={`Remove ${n}`} onClick={() => toggle(n)}>×</button></li>)}
+          <h3 class="has-help">Skills <span class="muted">{slotSkills.length > maxSlots
+            ? `(${slotSkills.length} learnable, the game keeps ${maxSlots}: remove the ones you dropped)`
+            : `(${slotSkills.length} of ${maxSlots})`}</span>
+            <Help>Innate skills, traits and Magatsuhi or Periapt skills don't use a skill slot, so they are listed apart and never count.</Help></h3>
+          {slotSkills.length > 0 && <ul class="chips">
+            {slotSkills.map((n: string) => <li class="chip"><Elem e={eng.skill(n)?.element} /> {n}<button aria-label={`Remove ${n}`} onClick={() => toggle(n)}>×</button></li>)}
           </ul>}
-          <SkillPick eng={eng} id="edit-skill" names={allSkills} chosen={skills} max={eng.cfg.maxSkillSlots || 8} onToggle={toggle} />
+          {freeSkills.length > 0 && <ul class="chips free">
+            {freeSkills.map((n: string) => <li class="chip"><Elem e={eng.skill(n)?.element} /> {n} <span class="chip-tag">{freeLabel(eng, d, n)}</span><button aria-label={`Remove ${n}`} onClick={() => toggle(n)}>×</button></li>)}
+          </ul>}
+          <SkillPick eng={eng} id="edit-skill" names={allSkills} chosen={skills} max={maxSlots} onToggle={toggle} />
         </div>
         <div class="field">
           <h3 class="has-help">Resistances <Help>Resist skills like Null Ice already count in the party. Change a value here only for items, story events or gear.</Help></h3>

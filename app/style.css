@@ -583,3 +583,7 @@ table.cmp-table td.cmp-v { text-align: center; font-family: var(--font-mono); fo
 .cmp-skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; margin-top: 16px; }
 /* never scroll the page sideways; wide tables scroll inside .tablewrap */
 html, body { overflow-x: clip; }
+
+/* skills outside the slots (innate, Magatsuhi...) */
+.chips.free .chip { border-style: dashed; }
+.chip-tag { font-size: 11px; color: var(--muted); }
