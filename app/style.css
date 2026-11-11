@@ -108,7 +108,9 @@ h3 { font-size: 14px; }
 @media (max-width: 700px) { .home-head img { width: 96px; height: 96px; } }
 .home-head h1 { font-size: 32px; }
 .home-head img { flex: none; }
-.series-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 18px; align-items: start; }
+/* columns, not a grid: short series stack under each other instead of waiting for the tallest one in their row */
+.series-grid { columns: 3 380px; column-gap: 18px; }
+.series-grid .series { break-inside: avoid; margin-bottom: 18px; }
 .series h2 { margin-bottom: 6px; }
 .gamelist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 4px; }
 .gamelist li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 9px 14px; }
