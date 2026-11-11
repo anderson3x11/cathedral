@@ -1235,9 +1235,10 @@ function Playthrough({ eng }: { eng: Eng }) {
   const save = (patch: any) => { const next = { ...sheet, ...patch }; setSheet(next); store.set(id + ':sheet', next); };
   const links = sheet.links || {}, stats = sheet.stats || {}, checks = sheet.checks || {};
   const requests: { name: string; status: number }[] = sheet.requests || [];
-  const gear: { who: string; slots: { [k: string]: string } }[] = Array.isArray(sheet.gear) ? sheet.gear : [{ who: def.gear.lead, slots: {} }];
+  const gear: { who: string; slots: { [k: string]: string } }[] = Array.isArray(sheet.gear) ? sheet.gear : [{ who: def.gear ? def.gear.lead : '', slots: {} }];
   const rankOf = (a: string) => (links[a] && links[a].rank) || 0;
-  const maxed = def.links.filter(([a]) => rankOf(a) >= def.linkMax).length;
+  const links_ = def.links || [], stats_ = def.stats || [], linkMax = def.linkMax || 10, statRanks = def.statRanks || 5;
+  const maxed = links_.filter(([a]) => rankOf(a) >= linkMax).length;
   const setGear = (rows: typeof gear) => save({ gear: rows });
 
   const exportSheet = () => {
@@ -1256,39 +1257,39 @@ function Playthrough({ eng }: { eng: Eng }) {
   const reset = () => { if (confirm(`Erase your ${meta.name} playthrough sheet on this device?`)) { setSheet({}); store.set(id + ':sheet', {}); setMsg('Sheet cleared.'); } };
 
   const cards: { k: string; title: string; count?: string; pct?: number; wide?: boolean; body: any }[] = [];
-  const statSum = def.stats.reduce((a, st) => a + (stats[st] || 1), 0);
+  const statSum = stats_.reduce((a, st) => a + (stats[st] || 1), 0);
   const pickCard = (k: string) => { setTab(k); document.getElementById('card-' + k)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
-  cards.push({ k: 'links', title: 'Social links', count: `${maxed}/${def.links.length} max`, pct: maxed / def.links.length, body: (
+  if (links_.length) cards.push({ k: 'links', title: def.linksTitle || 'Social links', count: `${maxed}/${links_.length} max`, pct: maxed / links_.length, body: (
     <Fragment>
       <label class="srow spoil"><input type="checkbox" checked={!!sheet.showNames} onChange={e => save({ showNames: (e.target as HTMLInputElement).checked })} /> Show names I haven't met</label>
-      {def.links.map(([arcana, who]) => {
+      {links_.map(([arcana, who]) => {
         const r = rankOf(arcana);
         return (
-          <div class={'srow link' + (r >= def.linkMax ? ' maxed' : r > 0 ? ' met' : '')}>
+          <div class={'srow link' + (r >= linkMax ? ' maxed' : r > 0 ? ' met' : '')}>
             <span class="arc">{arcana}</span>
             <span class="who-wrap">
               <span class="who">{r > 0 || sheet.showNames ? who : <span class="muted" title="Hidden until you meet them">???</span>}</span>
-              {r > 0 && <span class="rb" aria-hidden="true"><span style={{ width: `${(r / def.linkMax) * 100}%` }} /></span>}
+              {r > 0 && <span class="rb" aria-hidden="true"><span style={{ width: `${(r / linkMax) * 100}%` }} /></span>}
             </span>
             <select aria-label={`${arcana} rank`} value={r} onChange={e => save({ links: { ...links, [arcana]: { rank: +(e.target as HTMLSelectElement).value } } })}>
-              {Array.from({ length: def.linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? '–' : i === def.linkMax ? 'Max' : i}</option>)}
+              {Array.from({ length: linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? '–' : i === linkMax ? 'Max' : i}</option>)}
             </select>
           </div>
         );
       })}
     </Fragment>
   ) });
-  cards.push({ k: 'stats', title: 'Social stats', count: `${statSum}/${def.stats.length * def.statRanks}`, pct: statSum / (def.stats.length * def.statRanks), body: def.stats.map(st => {
+  if (stats_.length) cards.push({ k: 'stats', title: 'Social stats', count: `${statSum}/${stats_.length * statRanks}`, pct: statSum / (stats_.length * statRanks), body: stats_.map(st => {
     const cur = stats[st] || 1;
     return (
-      <div class={'srow stat' + (cur >= def.statRanks ? ' maxed' : '')}>
+      <div class={'srow stat' + (cur >= statRanks ? ' maxed' : '')}>
         <span class="st-name">{st}</span>
         <span class="pips" role="group" aria-label={`${st} rank`}>
-          {Array.from({ length: def.statRanks }, (_, i) => (
+          {Array.from({ length: statRanks }, (_, i) => (
             <button class={i < cur ? 'on' : ''} aria-label={`${st} rank ${i + 1}`} aria-pressed={i < cur} onClick={() => save({ stats: { ...stats, [st]: i + 1 } })} />
           ))}
         </span>
-        <span class="rank-t" title={`Rank ${cur} of ${def.statRanks}`}>{(def.rankNames[st] || [])[cur - 1] || `Rank ${cur}`}</span>
+        <span class="rank-t" title={`Rank ${cur} of ${statRanks}`}>{((def.rankNames || {})[st] || [])[cur - 1] || `Rank ${cur}`}</span>
       </div>
     );
   }) });
@@ -1322,14 +1323,15 @@ function Playthrough({ eng }: { eng: Eng }) {
       </Fragment>
     ) });
   }
-  const gearCols = { gridTemplateColumns: `minmax(6em, 1.1fr) repeat(${def.gear.slots.length}, minmax(0, 1fr)) 1.4em` };
-  cards.push({ k: 'gear', title: 'Equipment', count: `${gear.length} ${gear.length === 1 ? 'member' : 'members'}`, body: (
+  const slots_ = def.gear ? def.gear.slots : [];
+  const gearCols = { gridTemplateColumns: `minmax(6em, 1.1fr) repeat(${slots_.length}, minmax(0, 1fr)) 1.4em` };
+  if (def.gear) cards.push({ k: 'gear', title: 'Equipment', count: `${gear.length} ${gear.length === 1 ? 'member' : 'members'}`, body: (
     <Fragment>
-      <div class="gear-row gear-head" style={gearCols}><span>Character</span>{def.gear.slots.map(sl => <span>{sl}</span>)}<span /></div>
+      <div class="gear-row gear-head" style={gearCols}><span>Character</span>{slots_.map(sl => <span>{sl}</span>)}<span /></div>
       {gear.map((g, i) => (
         <div class="gear-row" style={gearCols}>
           <input class="cell-input who" aria-label="Character" value={g.who} placeholder="Party member" onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, who: (e.target as HTMLInputElement).value } : x))} />
-          {def.gear.slots.map(sl => <input class="cell-input" aria-label={`${g.who || 'Member'} ${sl}`} placeholder="–" value={g.slots[sl] || ''}
+          {slots_.map(sl => <input class="cell-input" aria-label={`${g.who || 'Member'} ${sl}`} placeholder="–" value={g.slots[sl] || ''}
             onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, slots: { ...x.slots, [sl]: (e.target as HTMLInputElement).value } } : x))} />)}
           {i > 0 ? <button class="x" aria-label="Remove member" onClick={() => setGear(gear.filter((_, j) => j !== i))}>×</button> : <span />}
         </div>
@@ -1375,7 +1377,8 @@ function Playthrough({ eng }: { eng: Eng }) {
           </button>
         ))}
       </div>
-      <div class="sheet-board" ref={boardRef}>{cards.filter(c => c.k !== 'gear').map(c => card(c))}</div>
+      {/* one checklist only (SMT games): it spans the full width with as many columns as fit */}
+      <div class={'sheet-board' + (cards.filter(c => c.k !== 'gear').length === 1 ? ' solo' : '')} ref={boardRef}>{cards.filter(c => c.k !== 'gear').map(c => card(c))}</div>
       {cards.filter(c => c.k === 'gear').map(c => card(c))}
     </section>
   );

@@ -1,17 +1,20 @@
 // Playthrough sheets: what a player tracks during a Persona run (social links, social stats, collectibles,
 // requests, equipment). Content lists are per game; progress is saved in the browser by the Playthrough view.
-// Started from the owner's own Google Sheets for P5R, P4G and P3R.
+// Started from the owner's own Google Sheets for P5R, P4G and P3R; request / quest titles come from app/quests.ts.
+import { QUESTS, SMT4_QUESTS } from './quests';
 
 export interface Checklist { title: string; groups: { name: string; items: string[] }[] }
+// Every section is optional: SMT games only have quest checklists.
 export interface SheetDef {
-  links: [string, string][];     // [arcana, character]; names stay hidden until met (spoilers)
-  linkMax: number;
-  stats: string[];
-  statRanks: number;
-  rankNames: { [stat: string]: string[] };  // in-game name of each rank, lowest first
+  links?: [string, string][];    // [arcana, character]; names stay hidden until met (spoilers)
+  linksTitle?: string;
+  linkMax?: number;
+  stats?: string[];
+  statRanks?: number;
+  rankNames?: { [stat: string]: string[] };  // in-game name of each rank, lowest first
   lists: Checklist[];            // fixed checklists (books, locations, games, requests...)
-  freeRequests: boolean;         // players add their own requests (no fixed list for this game yet)
-  gear: { lead: string; slots: string[] };  // only the protagonist is listed: party members are added by the player (no spoilers)
+  freeRequests?: boolean;         // players add their own requests (no fixed list for this game yet)
+  gear?: { lead: string; slots: string[] };  // only the protagonist is listed: party members are added by the player (no spoilers)
 }
 
 export const SHEETS: { [id: string]: SheetDef } = {
@@ -117,3 +120,19 @@ export const SHEETS: { [id: string]: SheetDef } = {
     gear: { lead: 'Protagonist', slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
   },
 };
+
+// ---- more games, built from the three above plus the quest lists ----
+const reqs = (title: string, items: string[]): Checklist => ({ title, groups: [{ name: title, items }] });
+const without = (links: [string, string][] | undefined, drop: string[]) => (links || []).filter(([a]) => !drop.includes(a));
+const { p5r, p4g, p3r } = SHEETS;
+p4g.lists = [reqs('Requests', QUESTS.p4g)]; p4g.freeRequests = false;
+p3r.lists = [reqs("Elizabeth's requests", QUESTS.p3r)]; p3r.freeRequests = false;
+SHEETS.p5 = { ...p5r, links: without(p5r.links, ['Councillor', 'Faith']), lists: [reqs('Mementos requests', QUESTS.p5)] };
+SHEETS.p4 = { ...p4g, links: without(p4g.links, ['Aeon', 'Jester']), lists: [reqs('Requests', QUESTS.p4)] };
+SHEETS.p3 = { ...p3r, links: without(p3r.links, ['Aeon']), lists: [reqs("Elizabeth's requests", QUESTS.p3)] };
+SHEETS.p3f = { ...p3r, lists: [reqs("Elizabeth's requests", QUESTS.p3f)] };
+SHEETS.p3p = { ...p3r, linksTitle: 'Social links (male route)', lists: [reqs("Elizabeth's requests", QUESTS.p3p)] };
+SHEETS.smt4 = { lists: [{ title: 'Challenge quests', groups: Object.entries(SMT4_QUESTS).map(([name, items]) => ({ name, items })) }] };
+SHEETS.smt5 = { lists: [reqs('Subquests', QUESTS.smt5)] };
+SHEETS.smt5v = { lists: [{ title: 'Subquests', groups: [{ name: 'Canon of Creation', items: QUESTS.smt5v_creation }, { name: 'Canon of Vengeance', items: QUESTS.smt5v_vengeance }] }] };
+SHEETS.sh2 = { lists: [reqs('Requests', QUESTS.sh2)] };
