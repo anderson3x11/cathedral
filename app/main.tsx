@@ -1255,14 +1255,17 @@ function Playthrough({ eng }: { eng: Eng }) {
   };
   const reset = () => { if (confirm(`Erase your ${meta.name} playthrough sheet on this device?`)) { setSheet({}); store.set(id + ':sheet', {}); setMsg('Sheet cleared.'); } };
 
-  const cards: { k: string; title: string; count?: string; body: any }[] = [];
-  cards.push({ k: 'links', title: 'Social links', count: `${maxed}/${def.links.length} max`, body: (
+  const cards: { k: string; title: string; count?: string; pct?: number; body: any }[] = [];
+  const statSum = def.stats.reduce((a, st) => a + (stats[st] || 1), 0);
+  const pickCard = (k: string) => { setTab(k); document.getElementById('card-' + k)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+  cards.push({ k: 'links', title: 'Social links', count: `${maxed}/${def.links.length} max`, pct: maxed / def.links.length, body: (
     <Fragment>
       <label class="srow spoil"><input type="checkbox" checked={!!sheet.showNames} onChange={e => save({ showNames: (e.target as HTMLInputElement).checked })} /> Show names I haven't met</label>
       {def.links.map(([arcana, who]) => {
         const r = rankOf(arcana);
         return (
           <div class={'srow link' + (r >= def.linkMax ? ' maxed' : r > 0 ? ' met' : '')}>
+            <span class="rb" aria-hidden="true"><span style={{ width: `${(r / def.linkMax) * 100}%` }} /></span>
             <span class="arc">{arcana}</span>
             <span class="who">{r > 0 || sheet.showNames ? who : <span class="muted" title="Hidden until you meet them">???</span>}</span>
             <select aria-label={`${arcana} rank`} value={r} onChange={e => save({ links: { ...links, [arcana]: { rank: +(e.target as HTMLSelectElement).value } } })}>
@@ -1273,17 +1276,24 @@ function Playthrough({ eng }: { eng: Eng }) {
       })}
     </Fragment>
   ) });
-  cards.push({ k: 'stats', title: 'Social stats', body: def.stats.map(st => (
-    <div class={'srow stat' + ((stats[st] || 1) >= def.statRanks ? ' maxed' : '')}>
-      <span>{st}</span>
-      <select aria-label={`${st} rank`} value={stats[st] || 1} onChange={e => save({ stats: { ...stats, [st]: +(e.target as HTMLSelectElement).value } })}>
-        {Array.from({ length: def.statRanks }, (_, i) => <option value={i + 1}>{i + 1 === def.statRanks ? 'Max' : `Rank ${i + 1}`}</option>)}
-      </select>
-    </div>
-  )) });
+  cards.push({ k: 'stats', title: 'Social stats', count: `${statSum}/${def.stats.length * def.statRanks}`, pct: statSum / (def.stats.length * def.statRanks), body: def.stats.map(st => {
+    const cur = stats[st] || 1;
+    return (
+      <div class={'srow stat' + (cur >= def.statRanks ? ' maxed' : '')}>
+        <span>{st}</span>
+        <span class="pips" role="group" aria-label={`${st} rank`}>
+          {Array.from({ length: def.statRanks }, (_, i) => (
+            <button class={i < cur ? 'on' : ''} aria-label={`${st} rank ${i + 1}`} aria-pressed={i < cur} onClick={() => save({ stats: { ...stats, [st]: i + 1 } })} />
+          ))}
+        </span>
+        <span class="muted rank-t">{cur >= def.statRanks ? 'Max' : `Rank ${cur}`}</span>
+      </div>
+    );
+  }) });
   def.lists.forEach((l, li) => {
     const keys = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`));
-    cards.push({ k: 'list' + li, title: l.title, count: `${keys.filter(k => checks[k]).length}/${keys.length}`, body: l.groups.map(g => (
+    const done = keys.filter(k => checks[k]).length;
+    cards.push({ k: 'list' + li, title: l.title, count: `${done}/${keys.length}`, pct: done / keys.length, body: l.groups.map(g => (
       <Fragment>
         {l.groups.length > 1 && <div class="sgroup">{g.name}</div>}
         {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
@@ -1293,7 +1303,8 @@ function Playthrough({ eng }: { eng: Eng }) {
     )) });
   });
   if (def.freeRequests) {
-    cards.push({ k: 'req', title: 'Requests', count: `${requests.filter(r => r.status === 2).length}/${requests.length}`, body: (
+    const doneReq = requests.filter(r => r.status === 2).length;
+    cards.push({ k: 'req', title: 'Requests', count: `${doneReq}/${requests.length}`, pct: requests.length ? doneReq / requests.length : 0, body: (
       <Fragment>
         {requests.map((rq, i) => {
           const set = (patch: any) => save({ requests: requests.map((x, j) => j === i ? { ...x, ...patch } : x) });
@@ -1309,7 +1320,7 @@ function Playthrough({ eng }: { eng: Eng }) {
       </Fragment>
     ) });
   }
-  cards.push({ k: 'gear', title: 'Equipment', body: (
+  cards.push({ k: 'gear', title: 'Equipment', count: `${gear.length} ${gear.length === 1 ? 'member' : 'members'}`, body: (
     <Fragment>
       {gear.map((g, i) => (
         <div class="gear-block">
@@ -1339,12 +1350,17 @@ function Playthrough({ eng }: { eng: Eng }) {
         </div>
       </header>
       {msg && <p class="note">{msg}</p>}
-      <div class="sheet-tabs" role="tablist" aria-label="Sheet sections">
-        {cards.map(c => <button role="tab" aria-selected={tab === c.k} class={tab === c.k ? 'on' : ''} onClick={() => setTab(c.k)}>{c.title}</button>)}
+      <div class="sheet-overview" role="tablist" aria-label="Sheet sections">
+        {cards.map(c => (
+          <button role="tab" aria-selected={tab === c.k} class={'tile' + (tab === c.k ? ' on' : '')} onClick={() => pickCard(c.k)}>
+            <span class="tile-t">{c.title}</span><span class="tile-n">{c.count}</span>
+            {c.pct !== undefined && <span class="tile-bar" aria-hidden="true"><span style={{ width: `${Math.round(c.pct * 100)}%` }} /></span>}
+          </button>
+        ))}
       </div>
       <div class="sheet-board">
         {cards.map(c => (
-          <section class={'sheet-card' + (tab === c.k ? ' on' : '')}>
+          <section id={'card-' + c.k} class={'sheet-card' + (tab === c.k ? ' on' : '')}>
             <header class="sheet-card-h"><h2>{c.title}</h2>{c.count && <span class="muted">{c.count}</span>}</header>
             <div class="sheet-body">{c.body}</div>
           </section>
