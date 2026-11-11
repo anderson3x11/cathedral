@@ -130,8 +130,10 @@ const PARTY_LEAD: { [id: string]: [string, number] } = {
   sh2: ['Ringo and her allies (one demon each)', 4],
   ds1: ['each team leader', 2], dso: ['each team leader', 2], ds2: ['each team leader', 2], ds2br: ['each team leader', 2],
 };
-export function partyShape(id: string): { persona: boolean; lead: string; active: number } {
+// hasLead: one protagonist who fights beside the demons (not Persona, not Devil Survivor teams or Soul Hackers 2 allies).
+export function partyShape(id: string): { persona: boolean; lead: string; active: number; hasLead: boolean; leadName: string } {
   const persona = GAMES.find(g => g.id === id)?.series === 'Persona';
   const [lead, active] = PARTY_LEAD[id] || ['the protagonist', 3];
-  return { persona, lead, active: persona ? 12 : active };
+  const leadName = lead.replace(/^the /, '').replace(/^./, c => c.toUpperCase());
+  return { persona, lead, active: persona ? 12 : active, hasLead: !persona && !/each|allies/.test(lead), leadName };
 }

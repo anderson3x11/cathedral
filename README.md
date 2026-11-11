@@ -8,12 +8,17 @@ Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more. Named afte
 ## What it does
 
 - **Compendium**: every demon or persona with stats, resistances and affinities. Sort any column, filter by name or race.
+  Enter your level to see only what you can fuse right now.
+- **Compare**: two demons side by side, better stats and resistances highlighted.
 - **Recipes**: what each demon is made from (two-demon and triple fusions, special recipes) and what it fuses into,
   easiest recipes first.
 - **Skill planner**: pick a demon and up to 8 skills; get the shortest fusion chains that end with it knowing all of them.
-  Mark the demons you already own and the planner prefers chains that use them.
-- **Party builder**: line up six demons and see shared weaknesses, attack coverage and missing support. Share a party with a link.
+  Mark the demons you already own and the planner prefers chains that use them. Each plan shows what the starting demons cost.
+- **Party builder**: your battle party (with your protagonist: Nahobino, Demi-fiend, Flynn...) plus a reserve. Edit each member
+  to match your save; resist skills like Null Ice count. See shared weaknesses, the skills that fix them, attack coverage and
+  missing support, and send a member to the skill planner in one click. Share a party with a link.
 - **Fusion chart**: the race (or arcana) grid.
+- **Playthrough sheets**: social links, social stats, books and requests or quests for Persona 3 to 5, SMT IV, SMT V and Soul Hackers 2.
 - **Search**: find a demon in every game at once from the homepage.
 - **Unlocks**: switch off DLC and story-locked demons; every recipe updates.
 
