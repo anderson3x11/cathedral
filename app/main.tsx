@@ -167,10 +167,10 @@ function planHandoff(eng: Eng, name: string, want: string[]) {
 const capFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 // "?" after a heading; the bubble opens on hover, keyboard focus or tap.
-let helpId = 0;
+// It uses the same floating bubble as every title, so it never widens the page near the right edge.
 function Help({ children }: { children: any }) {
-  const id = useMemo(() => 'help-' + ++helpId, []);
-  return <span class="help" tabIndex={0} aria-describedby={id}>?<span class="tip" role="tooltip" id={id}>{children}</span></span>;
+  const text = ([] as any[]).concat(children).join('');
+  return <span class="help" tabIndex={0} role="img" aria-label={text} data-tip={text}>?</span>;
 }
 
 // Every title attribute shows in the same styled bubble instead of the browser's plain tooltip.
@@ -742,58 +742,47 @@ function Compare({ eng, arg }: { eng: Eng; arg?: string }) {
   const ds = names.map(n => n ? eng.demon(n) : null);
   const go = (a: string, b: string) => { location.hash = href({ game: eng.cfg.id, view: 'compare', arg: [a, b].filter(Boolean).map(n => eng.ix.slugOf[n]).join('.') || undefined }); };
   const pick = (i: number, n: string) => go(i === 0 ? n : names[0], i === 1 ? n : names[1]);
-  const both = ds[0] && ds[1];
+  const both = !!(ds[0] && ds[1]);
   const elems: string[] = eng.cfg.resistElems;
   const stats: string[] = eng.cfg.baseStats;
   const aff: string[] = eng.cfg.affinityElems || [];
-  const better = (i: number, a: number, b: number) => both && (i === 0 ? a > b : b > a) ? 'win' : '';
+  // One row per value; when both are picked the higher score is green, the lower red.
+  type Row = { label: any; show: (d: any) => any; score?: (d: any) => number };
+  const sections: [string, Row[]][] = [
+    ['Stats', [{ label: 'Level', show: d => d.lvl } as Row].concat(stats.map((st, i) => ({ label: st, show: (d: any) => d.stats[i], score: (d: any) => d.stats[i] || 0 })))],
+    ['Resistances', elems.map((e, i) => ({ label: <Elem e={e} long />, show: (d: any) => <ResistCell code={d.resists[i]} />, score: (d: any) => RESIST_RANK[d.resists[i]] }))],
+  ];
+  if (aff.length) {
+    sections.push(['Skill potential', aff.map((e, i) => ({ label: <Elem e={e} long />, show: (d: any) => { const v = d.affinities[i] || 0; return v > 0 ? '+' + v : String(v); }, score: (d: any) => d.affinities[i] || 0 }))]);
+  }
+  const tone = (r: Row, i: number) => {
+    if (!both || !r.score) { return ''; }
+    const a = r.score(ds[i]), b = r.score(ds[1 - i]);
+    return a > b ? 'better' : a < b ? 'worse' : '';
+  };
   return (
     <section class="view">
-      <header class="view-head"><div><h1>Compare</h1><p class="lede">Two {meta.units} side by side. Better values are highlighted.</p></div></header>
-      <div class="cmp-picks">
-        {[0, 1].map(i => (
-          <div class="panel cmp-pick">
-            {ds[i] ? (
-              <div class="picked"><DemonLink eng={eng} name={names[i]} /><button class="x" onClick={() => pick(i, '')}>Change</button></div>
-            ) : <DemonList eng={eng} id={'cmp-' + i} exclude={names.filter(Boolean)} placeholder={`Type a ${meta.unit} name`} onPick={n => pick(i, n)} />}
-          </div>
-        ))}
-      </div>
-      {(ds[0] || ds[1]) && (
-        <Fragment>
-          {stats.length > 0 && <section class="panel">
-            <h2>Stats</h2>
-            <div class="tablewrap"><table class="grid cmp">
-              <thead><tr><th /><th>{names[0] || '-'}</th><th>{names[1] || '-'}</th></tr></thead>
+      <header class="view-head"><div><h1>Compare</h1><p class="lede">Two {meta.units}, one under the other. Green is better, red is worse.</p></div></header>
+      <div class="panel cmp">
+        <div class="tablewrap">
+          <table class="grid cmp-table">
+            <thead><tr><th class="cmp-k" />{[0, 1].map(i => (
+              <th class="cmp-d">{ds[i]
+                ? <span class="cmp-picked"><DemonLink eng={eng} name={names[i]} /><button class="mini" onClick={() => pick(i, '')}>Change</button></span>
+                : <DemonList eng={eng} id={'cmp-' + i} exclude={names.filter(Boolean)} placeholder={`Type a ${meta.unit} name`} onPick={n => pick(i, n)} />}</th>
+            ))}</tr></thead>
+            {(ds[0] || ds[1]) && sections.map(([title, rows]) => (
               <tbody>
-                <tr><th>Level</th>{ds.map(d => <td class="cnum">{d ? d.lvl : ''}</td>)}</tr>
-                {stats.map((st, si) => <tr><th>{st}</th>{ds.map((d, i) => <td class={'cnum ' + (both ? better(i, d!.stats[si] || 0, ds[1 - i]!.stats[si] || 0) : '')}>{d ? d.stats[si] : ''}</td>)}</tr>)}
+                <tr class="cmp-sec"><th colSpan={3}>{title}</th></tr>
+                {rows.map(r => <tr><th class="cmp-k">{r.label}</th>{[0, 1].map(i => <td class={'cmp-v ' + tone(r, i)}>{ds[i] ? r.show(ds[i]) : ''}</td>)}</tr>)}
               </tbody>
-            </table></div>
-          </section>}
-          <section class="panel">
-            <h2>Resistances</h2>
-            <div class="tablewrap"><table class="grid cmp">
-              <thead><tr><th />{elems.map(e => <th class="rescol"><Elem e={e} /></th>)}</tr></thead>
-              <tbody>{ds.map((d, i) => d && (
-                <tr><th>{d.name}</th>{elems.map((_, ei) => <td class={'rescol ' + (both ? better(i, RESIST_RANK[d.resists[ei]], RESIST_RANK[ds[1 - i]!.resists[ei]]) : '')}><ResistCell code={d.resists[ei]} blank /></td>)}</tr>
-              ))}</tbody>
-            </table></div>
-            {aff.length > 0 && <Fragment>
-              <h3>Skill potential</h3>
-              <div class="tablewrap"><table class="grid cmp">
-                <thead><tr><th />{aff.map(e => <th class="rescol"><Elem e={e} /></th>)}</tr></thead>
-                <tbody>{ds.map((d, i) => d && (
-                  <tr><th>{d.name}</th>{aff.map((_, ai) => { const v = d.affinities[ai] || 0; return <td class={'rescol aff ' + (v > 0 ? 'up ' : v < 0 ? 'down ' : '') + (both ? better(i, v, ds[1 - i]!.affinities[ai] || 0) : '')}>{v > 0 ? '+' + v : v < 0 ? v : ''}</td>; })}</tr>
-                ))}</tbody>
-              </table></div>
-            </Fragment>}
-          </section>
-          <div class="cmp-skills">
-            {ds.map(d => d && <section class="panel"><h2>{d.name}: skills</h2><SkillTable eng={eng} d={d} /></section>)}
-          </div>
-        </Fragment>
-      )}
+            ))}
+          </table>
+        </div>
+      </div>
+      {(ds[0] || ds[1]) && <div class="cmp-skills">
+        {ds.map(d => d && <section class="panel"><h2>{d.name}: skills</h2><SkillTable eng={eng} d={d} /></section>)}
+      </div>}
     </section>
   );
 }
@@ -1327,20 +1316,28 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
       {party.length > 0 && (
         <div class="party-grid">
           <section class="panel">
-            <h2>Shared weaknesses</h2>
+            <h2 class="has-help">Shared weaknesses <Help>Elements two or more members are weak to. Demons that null, repel or drain it are picked around your party's average level{analysis.avg ? ` (${analysis.avg})` : ''}.</Help></h2>
             {analysis.problems.length === 0 ? <p class="ok">No element hits two or more members for weakness damage.</p> :
               <ul class="problems">
                 {analysis.problems.map(p => {
                   const sug = suggest(p.i);
                   const fixes = (resistSkills(eng)[p.e] || []).slice(0, 4);
                   const fix = fixes.slice().reverse().find(n => eng.skill(n)?.inheritable); // strongest one fusion can pass down
-                  const weakDemons = team.filter((v: any) => v.resists[p.i] === 'wk' && !v.lead);
+                  const weakOnes = team.filter((v: any) => v.resists[p.i] === 'wk');
+                  const weakDemons = weakOnes.filter((v: any) => !v.lead);
                   return (
-                    <li>
-                      <p><Elem e={p.e} long /> hits {p.weak} members. {p.cover ? `${p.cover} can take it.` : 'Nobody resists it.'}</p>
-                      {sug.length > 0 && <p class="sug">Around Lv {analysis.avg}, these null, repel or drain it: {sug.map((d: any, i: number) => <Fragment>{i > 0 && ', '}<a href={demonHref(eng, d.name)}>{d.name}</a> <span class="muted">{d.lvl}</span></Fragment>)}</p>}
-                      {fixes.length > 0 && <p class="sug">Or give a weak member one of these skills: {fixes.map((n, i) => <Fragment>{i > 0 && ', '}<a href={skillHref(eng, n)}>{n}</a></Fragment>)}.
-                        {fix && !eng.cfg.noPlanner && weakDemons.length > 0 && <span class="plan-fix"> Plan {fix} on {weakDemons.map((v: any, i: number) => <Fragment>{i > 0 && ', '}<a href={href({ game: id, view: 'planner' })} onClick={() => planHandoff(eng, v.m.name, [fix])}>{v.label}</a></Fragment>)}.</span>}</p>}
+                    <li class="prob">
+                      <div class="prob-head">
+                        <Elem e={p.e} long />
+                        <span class="prob-who"><b>{weakOnes.map((v: any) => v.label).join(', ')}</b> {weakOnes.length === 1 ? 'is' : 'are'} weak</span>
+                        <span class={p.cover ? 'prob-cover' : 'prob-cover none'}>{p.cover ? `${p.cover} ${p.cover === 1 ? 'member resists' : 'members resist'}` : 'Nobody resists'}</span>
+                      </div>
+                      {sug.length > 0 && <div class="prob-row"><span class="prob-k">Demons that block it</span>
+                        <span class="prob-v">{sug.map((d: any) => <a class="pchip" href={demonHref(eng, d.name)}><span class="lv">{d.lvl}</span><span class="nm">{d.name}</span></a>)}</span></div>}
+                      {fixes.length > 0 && <div class="prob-row"><span class="prob-k">Skills that fix it</span>
+                        <span class="prob-v">{fixes.map(n => <a class="pchip" href={skillHref(eng, n)}><span class="nm">{n}</span></a>)}</span></div>}
+                      {fix && !eng.cfg.noPlanner && weakDemons.length > 0 && <div class="prob-row"><span class="prob-k">Plan {fix} on</span>
+                        <span class="prob-v">{weakDemons.map((v: any) => <a class="mini edit" href={href({ game: id, view: 'planner' })} onClick={() => planHandoff(eng, v.m.name, [fix])}>{v.label}</a>)}</span></div>}
                     </li>
                   );
                 })}
