@@ -568,7 +568,8 @@ a:hover { text-decoration-thickness: 2px; }
 .plan-fix a { font-weight: 600; }
 
 /* compare: one table, demons as columns, values one under the other */
-.panel.cmp { padding: 0; max-width: 820px; }
+.view.compare { max-width: 820px; margin-left: auto; margin-right: auto; }
+.panel.cmp { padding: 0; }
 .cmp-table th.cmp-k .elem { flex-direction: row; gap: 6px; font-size: 13px; font-weight: 600; }
 .cmp-table td.cmp-v .res { min-width: 2.6em; }
 table.cmp-table { table-layout: fixed; }

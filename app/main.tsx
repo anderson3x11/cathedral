@@ -761,7 +761,7 @@ function Compare({ eng, arg }: { eng: Eng; arg?: string }) {
     return a > b ? 'better' : a < b ? 'worse' : '';
   };
   return (
-    <section class="view">
+    <section class="view compare">
       <header class="view-head"><div><h1>Compare</h1><p class="lede">Two {meta.units}, one under the other. Green is better, red is worse.</p></div></header>
       <div class="panel cmp">
         <div class="tablewrap">
@@ -1336,8 +1336,8 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
                         <span class="prob-v">{sug.map((d: any) => <a class="pchip" href={demonHref(eng, d.name)}><span class="lv">{d.lvl}</span><span class="nm">{d.name}</span></a>)}</span></div>}
                       {fixes.length > 0 && <div class="prob-row"><span class="prob-k">Skills that fix it</span>
                         <span class="prob-v">{fixes.map(n => <a class="pchip" href={skillHref(eng, n)}><span class="nm">{n}</span></a>)}</span></div>}
-                      {fix && !eng.cfg.noPlanner && weakDemons.length > 0 && <div class="prob-row"><span class="prob-k">Plan {fix} on</span>
-                        <span class="prob-v">{weakDemons.map((v: any) => <a class="mini edit" href={href({ game: id, view: 'planner' })} onClick={() => planHandoff(eng, v.m.name, [fix])}>{v.label}</a>)}</span></div>}
+                      {fix && !eng.cfg.noPlanner && weakDemons.length > 0 && <div class="prob-row"><span class="prob-k">Plan resist on</span>
+                        <span class="prob-v">{weakDemons.map((v: any) => <a class="mini edit" href={href({ game: id, view: 'planner' })} title={`Open the skill planner: ${v.label} with ${fix}`} onClick={() => planHandoff(eng, v.m.name, [fix])}>{v.label}</a>)}</span></div>}
                     </li>
                   );
                 })}
