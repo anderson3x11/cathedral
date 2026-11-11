@@ -1243,7 +1243,7 @@ function Playthrough({ eng }: { eng: Eng }) {
 
   const exportSheet = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ game: id, sheet }, null, 2)], { type: 'application/json' }));
-    const el = document.createElement('a'); el.href = url; el.download = `cathedral-${id}-playthrough.json`; el.click();
+    const el = document.createElement('a'); el.href = url; el.download = `pyxi-${id}-playthrough.json`; el.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const importSheet = (f?: File) => {
@@ -1488,10 +1488,10 @@ function Home() {
     <section class="view home">
       <div class="home-tools"><ThemeButton /></div>
       <header class="home-head">
-        <img src="logo.png" alt="" width="72" height="72" />
+        <img src={`logo.png?v=${__BUILD__}`} alt="" width="72" height="72" />
         <div>
-          <h1>Cathedral</h1>
-          <p class="lede">Megaten fusion calculator, skill planner and party builder for 41 games.</p>
+          <h1>Pyxi</h1>
+          <p class="lede">Your Megaten companion: fusion calculator, skill planner, party builder and playthrough sheets for 41 games.</p>
         </div>
       </header>
       <Search />
@@ -1588,7 +1588,7 @@ function App() {
   useEffect(() => {
     const labels: { [v: string]: string } = { list: 'Compendium', skills: 'Skills', planner: 'Skill planner', party: 'Party', unlocks: 'Unlocks', chart: 'Fusion chart', playthrough: 'Playthrough' };
     const page = !eng ? '' : route.view === 'demon' ? eng.ix.bySlug[route.arg!] : route.view === 'skill' ? eng.ix.skillBySlug[route.arg!] : labels[route.view];
-    document.title = route.view === 'home' ? 'Cathedral: Megaten Fusion Calculator for SMT, Persona and more' : [page, meta.name, 'Cathedral'].filter(Boolean).join(' | ');
+    document.title = route.view === 'home' ? 'Pyxi: Megaten Fusion Calculator for SMT, Persona and more' : [page, meta.name, 'Pyxi'].filter(Boolean).join(' | ');
   }, [route, eng]);
 
   let body: any = route.view === 'home' ? <Home /> : <div class="loading"><span class="spin" aria-hidden="true" />Loading {meta.name}</div>;
@@ -1618,7 +1618,7 @@ function App() {
     <Fragment>
       {route.game && <header class="top">
         <div class="top-inner">
-          <a class="brand" href="#home" title="All games"><img src="logo.png" alt="" width="24" height="24" />Cathedral</a>
+          <a class="brand" href="#home" title="All games"><img src={`logo.png?v=${__BUILD__}`} alt="" width="24" height="24" />Pyxi</a>
           <span class="sep" aria-hidden="true">/</span>
           <GameSelect route={route} />
           <ThemeButton />

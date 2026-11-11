@@ -4,8 +4,8 @@ import crypto from 'crypto';
 
 // Public address of the deployed site, needed for absolute link-preview URLs. Override with SITE_URL=... npm run build.
 const SITE = (process.env.SITE_URL || 'https://anderson3x11.dev/cathedral/').replace(/\/?$/, '/').replace(/^http:/, 'https:');
-const TITLE = 'Cathedral: Megaten Fusion Calculator for SMT, Persona and more';
-const NAME = 'Cathedral';
+const TITLE = 'Pyxi: Megaten Fusion Calculator for SMT, Persona and more';
+const NAME = 'Pyxi';
 const DESC = 'Megaten fusion calculator, skill planner and party builder for 41 games: Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more.';
 
 await esbuild.build({
@@ -18,7 +18,7 @@ const assets = ['elem-sprites.svg', 'weapon-sprites.svg', 'logo.png', 'favicon.p
 for (const f of assets) { fs.copyFileSync('app/' + f, 'dist/' + f); }
 
 fs.writeFileSync('dist/site.webmanifest', JSON.stringify({
-  name: 'Cathedral: Megaten Fusion Calculator', short_name: NAME, description: DESC, start_url: './', scope: './', display: 'standalone',
+  name: 'Pyxi: Megaten Fusion Calculator', short_name: NAME, description: DESC, start_url: './', scope: './', display: 'standalone',
   background_color: '#15171a', theme_color: '#15171a',
   icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }],
 }, null, 2));
@@ -47,7 +47,7 @@ fs.writeFileSync('dist/index.html', `<!doctype html>
 <meta property="og:image" content="${SITE}og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Cathedral logo: Megaten fusion calculator">
+<meta property="og:image:alt" content="Pyxi logo: Megaten fusion calculator">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${TITLE}">
 <meta name="twitter:description" content="${DESC}">
@@ -56,7 +56,7 @@ fs.writeFileSync('dist/index.html', `<!doctype html>
 ${css}
 </style>
 <div id="app"><div class="main"><div class="loading">Loading</div></div></div>
-<noscript><p style="padding:16px">Cathedral needs JavaScript to run.</p></noscript>
+<noscript><p style="padding:16px">Pyxi needs JavaScript to run.</p></noscript>
 <script src="app.js?v=${appHash}"></script>
 `);
 console.log('built', fs.statSync('dist/app.js').size, 'for', SITE);

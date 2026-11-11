@@ -1,7 +1,7 @@
-# Cathedral: Megaten Fusion Calculator
+# Pyxi: Megaten Fusion Calculator
 
 Fusion calculator, skill planner and party builder for 41 Megami Tensei games:
-Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more. Named after the Cathedral of Shadows.
+Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more. Named after Pixie, the first companion of every run.
 
 **Use it:** https://anderson3x11.dev/cathedral/
 
