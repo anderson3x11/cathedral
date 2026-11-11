@@ -1223,8 +1223,8 @@ function ChartView({ eng }: { eng: Eng }) {
 // The player's run: social links, social stats, checklists, requests, equipment. Saved in this browser only;
 // export / import moves it between devices. Names stay hidden until met so the list does not spoil the story.
 const REQ_STATUS = ['Not started', 'In progress', 'Done'];
-// Laid out like a spreadsheet: compact cards side by side, long lists scroll inside their card, so the
-// whole run fits on one screen. Phones show one card at a time with tabs.
+// Laid out like a spreadsheet: cards side by side in columns, each a vertical list showing everything
+// (nothing scrolls inside a card). Equipment is full width so each character fits on one line. Phones: one card at a time.
 function Playthrough({ eng }: { eng: Eng }) {
   const id = eng.cfg.id;
   const def = SHEETS[id];
@@ -1265,9 +1265,11 @@ function Playthrough({ eng }: { eng: Eng }) {
         const r = rankOf(arcana);
         return (
           <div class={'srow link' + (r >= def.linkMax ? ' maxed' : r > 0 ? ' met' : '')}>
-            <span class="rb" aria-hidden="true"><span style={{ width: `${(r / def.linkMax) * 100}%` }} /></span>
             <span class="arc">{arcana}</span>
-            <span class="who">{r > 0 || sheet.showNames ? who : <span class="muted" title="Hidden until you meet them">???</span>}</span>
+            <span class="who-wrap">
+              <span class="who">{r > 0 || sheet.showNames ? who : <span class="muted" title="Hidden until you meet them">???</span>}</span>
+              {r > 0 && <span class="rb" aria-hidden="true"><span style={{ width: `${(r / def.linkMax) * 100}%` }} /></span>}
+            </span>
             <select aria-label={`${arcana} rank`} value={r} onChange={e => save({ links: { ...links, [arcana]: { rank: +(e.target as HTMLSelectElement).value } } })}>
               {Array.from({ length: def.linkMax + 1 }, (_, i) => <option value={i}>{i === 0 ? '–' : i === def.linkMax ? 'Max' : i}</option>)}
             </select>
@@ -1286,7 +1288,7 @@ function Playthrough({ eng }: { eng: Eng }) {
             <button class={i < cur ? 'on' : ''} aria-label={`${st} rank ${i + 1}`} aria-pressed={i < cur} onClick={() => save({ stats: { ...stats, [st]: i + 1 } })} />
           ))}
         </span>
-        <span class="muted rank-t">{cur >= def.statRanks ? 'Max' : `Rank ${cur}`}</span>
+        <span class="rank-t" title={`Rank ${cur} of ${def.statRanks}`}>{(def.rankNames[st] || [])[cur - 1] || `Rank ${cur}`}</span>
       </div>
     );
   }) });
@@ -1294,12 +1296,12 @@ function Playthrough({ eng }: { eng: Eng }) {
     const keys = l.groups.flatMap(g => g.items.map(it => `${l.title}:${g.name}:${it}`));
     const done = keys.filter(k => checks[k]).length;
     cards.push({ k: 'list' + li, title: l.title, count: `${done}/${keys.length}`, pct: done / keys.length, body: l.groups.map(g => (
-      <Fragment>
-        {l.groups.length > 1 && <div class="sgroup">{g.name}</div>}
+      <div class={l.groups.length > 1 ? 'sgroup-box' : 'sgroup-flat'}>
+        {l.groups.length > 1 && <div class="sgroup">{g.name} <span class="muted">{g.items.filter(it => checks[`${l.title}:${g.name}:${it}`]).length}/{g.items.length}</span></div>}
         {g.items.map(it => { const k = `${l.title}:${g.name}:${it}`; return (
           <label class={'srow check' + (checks[k] ? ' done' : '')}><input type="checkbox" checked={!!checks[k]} onChange={e => save({ checks: { ...checks, [k]: (e.target as HTMLInputElement).checked } })} /> {it}</label>
         ); })}
-      </Fragment>
+      </div>
     )) });
   });
   if (def.freeRequests) {
@@ -1320,23 +1322,28 @@ function Playthrough({ eng }: { eng: Eng }) {
       </Fragment>
     ) });
   }
+  const gearCols = { gridTemplateColumns: `minmax(6em, 1.1fr) repeat(${def.gear.slots.length}, minmax(0, 1fr)) 1.4em` };
   cards.push({ k: 'gear', title: 'Equipment', count: `${gear.length} ${gear.length === 1 ? 'member' : 'members'}`, body: (
     <Fragment>
+      <div class="gear-row gear-head" style={gearCols}><span>Character</span>{def.gear.slots.map(sl => <span>{sl}</span>)}<span /></div>
       {gear.map((g, i) => (
-        <div class="gear-block">
-          <div class="gear-who">
-            <input class="cell-input" aria-label="Character" value={g.who} placeholder="Party member" onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, who: (e.target as HTMLInputElement).value } : x))} />
-            {i > 0 && <button class="x" aria-label="Remove member" onClick={() => setGear(gear.filter((_, j) => j !== i))}>×</button>}
-          </div>
-          <div class="gear-slots">
-            {def.gear.slots.map(sl => <input class="cell-input" aria-label={`${g.who} ${sl}`} placeholder={sl} value={g.slots[sl] || ''}
-              onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, slots: { ...x.slots, [sl]: (e.target as HTMLInputElement).value } } : x))} />)}
-          </div>
+        <div class="gear-row" style={gearCols}>
+          <input class="cell-input who" aria-label="Character" value={g.who} placeholder="Party member" onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, who: (e.target as HTMLInputElement).value } : x))} />
+          {def.gear.slots.map(sl => <input class="cell-input" aria-label={`${g.who || 'Member'} ${sl}`} placeholder="–" value={g.slots[sl] || ''}
+            onInput={e => setGear(gear.map((x, j) => j === i ? { ...x, slots: { ...x.slots, [sl]: (e.target as HTMLInputElement).value } } : x))} />)}
+          {i > 0 ? <button class="x" aria-label="Remove member" onClick={() => setGear(gear.filter((_, j) => j !== i))}>×</button> : <span />}
         </div>
       ))}
       <div class="srow"><button class="mini" onClick={() => setGear(gear.concat([{ who: '', slots: {} }]))}>Add a party member</button></div>
     </Fragment>
   ) });
+
+  const card = (c: typeof cards[0], body = '') => (
+    <section id={'card-' + c.k} class={'sheet-card' + (tab === c.k ? ' on' : '')}>
+      <header class="sheet-card-h"><h2>{c.title}</h2>{c.count && <span class="muted">{c.count}</span>}</header>
+      <div class={('sheet-body ' + body).trim()}>{c.body}</div>
+    </section>
+  );
 
   return (
     <section class="view sheet">
@@ -1358,14 +1365,8 @@ function Playthrough({ eng }: { eng: Eng }) {
           </button>
         ))}
       </div>
-      <div class="sheet-board">
-        {cards.map(c => (
-          <section id={'card-' + c.k} class={'sheet-card' + (tab === c.k ? ' on' : '')}>
-            <header class="sheet-card-h"><h2>{c.title}</h2>{c.count && <span class="muted">{c.count}</span>}</header>
-            <div class="sheet-body">{c.body}</div>
-          </section>
-        ))}
-      </div>
+      <div class="sheet-board">{cards.filter(c => c.k !== 'gear').map(c => card(c))}</div>
+      {cards.filter(c => c.k === 'gear').map(c => card(c))}
     </section>
   );
 }

@@ -8,6 +8,7 @@ export interface SheetDef {
   linkMax: number;
   stats: string[];
   statRanks: number;
+  rankNames: { [stat: string]: string[] };  // in-game name of each rank, lowest first
   lists: Checklist[];            // fixed checklists (books, locations, games, requests...)
   freeRequests: boolean;         // players add their own requests (no fixed list for this game yet)
   gear: { lead: string; slots: string[] };  // only the protagonist is listed: party members are added by the player (no spoilers)
@@ -25,6 +26,13 @@ export const SHEETS: { [id: string]: SheetDef } = {
     linkMax: 10,
     stats: ['Knowledge', 'Guts', 'Proficiency', 'Kindness', 'Charm'],
     statRanks: 5,
+    rankNames: {
+      Knowledge: ['Oblivious', 'Learned', 'Scholarly', 'Encyclopedic', 'Erudite'],
+      Guts: ['Milquetoast', 'Bold', 'Staunch', 'Dauntless', 'Lionhearted'],
+      Proficiency: ['Bumbling', 'Decent', 'Skilled', 'Masterful', 'Transcendent'],
+      Kindness: ['Inoffensive', 'Considerate', 'Empathetic', 'Selfless', 'Angelic'],
+      Charm: ['Existent', 'Head-Turning', 'Suave', 'Charismatic', 'Debonair'],
+    },
     lists: [
       { title: 'Books', groups: [
         { name: 'Leblanc', items: ['Yoncha Wanderer 04', 'On Modern Social'] },
@@ -77,6 +85,13 @@ export const SHEETS: { [id: string]: SheetDef } = {
     linkMax: 10,
     stats: ['Courage', 'Diligence', 'Understanding', 'Expression', 'Knowledge'],
     statRanks: 5,
+    rankNames: {
+      Courage: ['Average', 'Reliable', 'Brave', 'Daring', 'Heroic'],
+      Diligence: ['Callow', 'Persistent', 'Strong', 'Thorough', 'Rock Solid'],
+      Understanding: ['Basic', 'Kindly', 'Generous', 'Motherly', 'Saintly'],
+      Expression: ['Rough', 'Eloquent', 'Persuasive', 'Touching', 'Enthralling'],
+      Knowledge: ['Aware', 'Informed', 'Expert', 'Professor', 'Sage'],
+    },
     lists: [],
     freeRequests: true,
     gear: { lead: 'Protagonist', slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
@@ -92,6 +107,11 @@ export const SHEETS: { [id: string]: SheetDef } = {
     linkMax: 10,
     stats: ['Academics', 'Charm', 'Courage'],
     statRanks: 6,
+    rankNames: {
+      Academics: ['Slacker', 'Average', 'Above Average', 'Smart', 'Intelligent', 'Genius'],
+      Charm: ['Plain', 'Unpolished', 'Confident', 'Smooth', 'Popular', 'Charismatic'],
+      Courage: ['Timid', 'Ordinary', 'Determined', 'Tough', 'Fearless', 'Badass'],
+    },
     lists: [],
     freeRequests: true,
     gear: { lead: 'Protagonist', slots: ['Weapon', 'Armor', 'Footwear', 'Accessory'] },
