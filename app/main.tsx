@@ -1488,7 +1488,7 @@ function Home() {
     <section class="view home">
       <div class="home-tools"><ThemeButton /></div>
       <header class="home-head">
-        <img src={`logo.png?v=${__BUILD__}`} alt="" width="72" height="72" />
+        <img src={`logo.png?v=${__BUILD__}`} alt="" width="140" height="140" />
         <div>
           <h1>Pyxi</h1>
           <p class="lede">Your Megaten companion: fusion calculator, skill planner, party builder and playthrough sheets for 41 games.</p>

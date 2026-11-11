@@ -104,7 +104,8 @@ h3 { font-size: 14px; }
 .hit-name { font-weight: 600; min-width: 160px; }
 .hit-games { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
 .home-head { display: flex; align-items: center; gap: 16px; padding: 8px 0 4px; }
-.home-head img { width: 84px; height: 84px; }
+.home-head img { width: 140px; height: 140px; }
+@media (max-width: 700px) { .home-head img { width: 96px; height: 96px; } }
 .home-head h1 { font-size: 32px; }
 .home-head img { flex: none; }
 .series-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 18px; align-items: start; }

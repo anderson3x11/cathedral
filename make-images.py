@@ -13,20 +13,16 @@ def square(im):
 
 logo = square(Image.open('app/logo-source.png').convert('RGBA'))
 
-# The wings are light on transparent, so every icon sits on a dark tile (readable on light and dark pages).
-def tile(size, pad, radius=0):
+logo.resize((280, 280), Image.LANCZOS).save('app/logo.png', optimize=True)
+logo.resize((64, 64), Image.LANCZOS).save('app/favicon.png', optimize=True)
+logo.resize((32, 32), Image.LANCZOS).save('app/favicon-32.png', optimize=True)
+logo.resize((48, 48), Image.LANCZOS).save('app/favicon.ico', sizes=[(16, 16), (32, 32), (48, 48)])
+
+def tile(size, pad):
     t = Image.new('RGBA', (size, size), BG + (255,))
     inner = size - 2 * pad
     t.alpha_composite(logo.resize((inner, inner), Image.LANCZOS), (pad, pad))
-    if radius:
-        mask = Image.new('L', (size, size), 0)
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius, fill=255)
-        t.putalpha(mask)
     return t
-tile(128, 10, 26).save('app/logo.png', optimize=True)
-tile(64, 5, 13).save('app/favicon.png', optimize=True)
-tile(32, 2, 6).save('app/favicon-32.png', optimize=True)
-tile(48, 3, 9).save('app/favicon.ico', sizes=[(16, 16), (32, 32), (48, 48)])
 # Home screens and the web manifest do not like transparency: square, opaque.
 tile(180, 18).convert('RGB').save('app/apple-touch-icon.png', optimize=True)
 tile(192, 24).convert('RGB').save('app/icon-192.png', optimize=True)
