@@ -6,6 +6,10 @@ import crypto from 'crypto';
 const SITE = (process.env.SITE_URL || 'https://anderson3x11.dev/pyxi/').replace(/\/?$/, '/').replace(/^http:/, 'https:');
 const TITLE = 'Pyxi: Megaten Fusion Calculator for SMT, Persona and more';
 const NAME = 'Pyxi';
+// Visitor counts on the owner's self-hosted Umami (cookieless). Empty ID = no script. data-domains skips local test runs.
+const UMAMI_ID = process.env.UMAMI_ID ?? '05efcc54-77c8-465b-8abb-d88ac9a2a221';
+const UMAMI = UMAMI_ID ? `
+<script defer src="https://stats.anderson3x11.dev/script.js" data-website-id="${UMAMI_ID}" data-domains="anderson3x11.dev"></script>` : '';
 const DESC = 'Megaten fusion calculator, skill planner and party builder for 41 games: Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more.';
 
 await esbuild.build({
@@ -57,6 +61,6 @@ ${css}
 </style>
 <div id="app"><div class="main"><div class="loading">Loading</div></div></div>
 <noscript><p style="padding:16px">Pyxi needs JavaScript to run.</p></noscript>
-<script src="app.js?v=${appHash}"></script>
+<script src="app.js?v=${appHash}"></script>${UMAMI}
 `);
 console.log('built', fs.statSync('dist/app.js').size, 'for', SITE);
