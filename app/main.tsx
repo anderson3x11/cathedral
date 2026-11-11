@@ -579,7 +579,7 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
       <div class="demon-grid">
         <div class="col">
           <DemonArt eng={eng} d={d} />
-          <section class="panel"><h2>Stats <span class="help" tabIndex={0} role="img" title="Each bar compares this stat with the highest value of the same stat in this game. A full bar means no demon has more." aria-label="Each bar compares this stat with the highest value of the same stat in this game. A full bar means no demon has more.">?</span></h2><Stats eng={eng} d={d} /></section>
+          <section class="panel"><h2 class="has-help">Stats <span class="help" tabIndex={0} aria-describedby="stats-tip">?<span class="tip" role="tooltip" id="stats-tip">Bars compare each stat with the highest value of that stat in this game. A full bar means no demon has more.</span></span></h2><Stats eng={eng} d={d} /></section>
         </div>
         <div class="col">
           <section class="panel">

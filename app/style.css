@@ -533,5 +533,9 @@ img.ei { width: 20px; height: 20px; padding: 2px; background: #24272c; border-ra
 .tablewrap, .stats, .strip-row, .art, .plan-form, .plan, .gamelist, .hits, .unlocks, .editor { border-radius: var(--r); box-shadow: var(--card-shadow); }
 .series h2 .muted, .party-top h2 .muted { font-weight: 400; }
 a:hover { text-decoration-thickness: 2px; }
-.help { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 4px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 11px; font-weight: 600; color: var(--muted); cursor: help; vertical-align: middle; }
-.help:hover, .help:focus-visible { color: var(--link); border-color: var(--link); }
+/* "?" next to a heading; the bubble opens on hover, keyboard focus or tap */
+.has-help { display: flex; align-items: center; gap: 6px; }
+.help { position: relative; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--sunk); color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1; cursor: help; outline: none; }
+.help:hover, .help:focus-visible, .help:focus { background: var(--link); color: var(--bg); }
+.help .tip { position: absolute; left: -6px; top: calc(100% + 8px); z-index: 10; width: max-content; max-width: min(260px, 80vw); padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--ink); font-size: 12.5px; font-weight: 400; line-height: 1.45; text-align: left; box-shadow: 0 4px 16px rgb(0 0 0 / 0.18); opacity: 0; visibility: hidden; transition: opacity 0.12s; pointer-events: none; }
+.help:hover .tip, .help:focus .tip { opacity: 1; visibility: visible; }
