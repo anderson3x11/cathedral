@@ -89,18 +89,78 @@ function addMember(p: Member[], m: Member, id: string): Member[] {
   return fitParty(p.concat([{ ...m, reserve: false }]), id);
 }
 // The member as it is in the player's game: defaults with their changes applied.
+// Resist passives in a member's skills ("Null Ice", "Anti-Fire", "Drain Phys"...), read from the skill effect text.
+const PASSIVE_RES: [RegExp, string][] = [[/^Drains (\w+) dmg taken/, 'dr'], [/^Repels (\w+) dmg taken/, 'rp'], [/^Nullifies (\w+) dmg taken/, 'nu'], [/^(\w+) dmg taken x0\.5/, 'rs']];
+const RES_ALIAS: { [word: string]: string } = { Light: 'exp', Dark: 'dea' }; // Nocturne-style Expel / Death
+function passiveResists(eng: Eng, skills: string[]) {
+  const elems: string[] = eng.cfg.resistElems;
+  const out: { [e: string]: { code: string; keepWeak: boolean; from: string } } = {};
+  for (const n of skills) {
+    const fx: string = eng.skill(n)?.effect || '';
+    for (const [re, code] of PASSIVE_RES) {
+      const w = fx.match(re)?.[1];
+      if (!w) { continue; }
+      const e = elems.find(x => ELEM_LABEL[x] === w) || (elems.includes(RES_ALIAS[w]) ? RES_ALIAS[w] : '');
+      if (e && (!out[e] || RESIST_RANK[code] > RESIST_RANK[out[e].code])) { out[e] = { code, keepWeak: /not override weakness/.test(fx), from: n }; }
+      break;
+    }
+  }
+  return out;
+}
+function withPassives(base: string, p?: { code: string; keepWeak: boolean }) {
+  if (!p || (p.keepWeak && base === 'wk')) { return base; }
+  return RESIST_RANK[p.code] > RESIST_RANK[base] ? p.code : base;
+}
 function memberView(eng: Eng, m: Member) {
   const d = eng.demon(m.name);
   if (!d) { return null; }
   const elems: string[] = eng.cfg.resistElems;
+  const skills: string[] = m.skills || d.skills.map((x: any) => x.name);
+  const passive = passiveResists(eng, skills);
   return {
     m, d,
-    resists: elems.map((e, i) => (m.resists && m.resists[e]) || d.resists[i]) as string[],
-    skills: (m.skills || d.skills.map((x: any) => x.name)) as string[],
+    resists: elems.map((e, i) => (m.resists && m.resists[e]) || withPassives(d.resists[i], passive[e])) as string[],
+    skills,
     custom: !!(m.skills || m.stats || (m.resists && Object.keys(m.resists).length)),
   };
 }
 const capFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+// "?" after a heading; the bubble opens on hover, keyboard focus or tap.
+let helpId = 0;
+function Help({ children }: { children: any }) {
+  const id = useMemo(() => 'help-' + ++helpId, []);
+  return <span class="help" tabIndex={0} aria-describedby={id}>?<span class="tip" role="tooltip" id={id}>{children}</span></span>;
+}
+
+// Every title attribute shows in the same styled bubble instead of the browser's plain tooltip.
+// The title moves to data-tip on first hover so the browser does not show its own on top.
+function initTips() {
+  const tip = document.createElement('div');
+  tip.className = 'tip tip-float';
+  tip.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip);
+  let cur: HTMLElement | null = null;
+  const hide = () => { cur = null; tip.classList.remove('on'); };
+  const show = (el: HTMLElement) => {
+    if (el.title) { el.dataset.tip = el.title; el.removeAttribute('title'); if (!el.getAttribute('aria-label') && !el.textContent?.trim()) { el.setAttribute('aria-label', el.dataset.tip); } }
+    if (!el.dataset.tip) { return hide(); }
+    cur = el;
+    const host = el.closest('dialog') || document.body; // a modal dialog sits above the page, so the bubble goes inside it
+    if (tip.parentNode !== host) { host.appendChild(tip); }
+    tip.textContent = el.dataset.tip;
+    tip.classList.add('on');
+    const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), innerWidth - t.width - 8);
+    const top = r.bottom + 8 + t.height > innerHeight ? r.top - t.height - 8 : r.bottom + 8;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  };
+  const find = (e: Event) => (e.target as Element).closest?.('[title], [data-tip]') as HTMLElement | null;
+  document.addEventListener('mouseover', e => { const el = find(e); if (el !== cur) { el ? show(el) : hide(); } });
+  document.addEventListener('focusin', e => { const el = find(e); el ? show(el) : hide(); });
+  ['scroll', 'mousedown', 'keydown'].forEach(ev => document.addEventListener(ev, hide, true));
+}
+initTips();
 
 // ---------- theme ----------
 // '' follows the system setting; 'light' / 'dark' override it (tokens in style.css key off data-theme).
@@ -373,7 +433,7 @@ function Potential({ eng, d }: { eng: Eng; d: any }) {
   if (!d.affinities.length || !elems.length) { return null; }
   return (
     <div class="strip">
-      <h3>Skill potential</h3>
+      <h3 class="has-help">Skill potential <Help>Positive values make this demon's skills of that type stronger and cheaper. Negative values make them weaker and costlier.</Help></h3>
       <div class="strip-row" style={{ gridTemplateColumns: `repeat(${elems.length}, minmax(0, 1fr))` }}>
         {elems.map((e, i) => {
           const v = d.affinities[i] || 0;
@@ -395,7 +455,7 @@ function Inheritance({ eng, d }: { eng: Eng; d: any }) {
   const blocked = elems.filter((_, i) => !(d.affinities[i] > 0));
   return (
     <div class="strip">
-      <h3>Inheritance</h3>
+      <h3 class="has-help">Inheritance <Help>When this persona is fused, it can only inherit skills of the types it allows. Passive and almighty skills follow the same rule.</Help></h3>
       <p class="inherit-line">
         {blocked.length === 0 ? 'Can inherit every skill type.' : blocked.length === elems.length ? 'Cannot inherit skills.' : <Fragment>Cannot inherit {blocked.map((e, i) => <Fragment>{i > 0 && ' '}<Elem e={e} long /></Fragment>)}</Fragment>}
       </p>
@@ -502,7 +562,7 @@ function Recipes({ eng, d }: { eng: Eng; d: any }) {
       {tab === 'from' && rows.length > shown.length && <button class="more" onClick={() => setAll(true)}>Show all {rows.length}</button>}
       {tab === 'from' && special.length <= 1 && trios.length > 0 && (
         <Fragment>
-          <h3 class="rec-h">Three {unit}s <span class="muted">(triple fusion)</span></h3>
+          <h3 class="rec-h has-help">Three {unit}s <span class="muted">(triple fusion)</span> <Help>Fuse three at once. Shown only when it helps: the 20 easiest trios first.</Help></h3>
           <div class="tablewrap">
             <table class="grid pairs trios">
               <thead><tr><th>Ingredient</th><th class="plus" aria-hidden="true" /><th>Ingredient</th><th class="plus" aria-hidden="true" /><th>Ingredient</th><th class="num">Max Lv</th></tr></thead>
@@ -579,7 +639,7 @@ function DemonPage({ eng, slug, party, setParty }: { eng: Eng; slug: string; par
       <div class="demon-grid">
         <div class="col">
           <DemonArt eng={eng} d={d} />
-          <section class="panel"><h2 class="has-help">Stats <span class="help" tabIndex={0} aria-describedby="stats-tip">?<span class="tip" role="tooltip" id="stats-tip">Bars compare each stat with the highest value of that stat in this game. A full bar means no demon has more.</span></span></h2><Stats eng={eng} d={d} /></section>
+          <section class="panel"><h2 class="has-help">Stats <Help>Bars compare each stat with the highest value of that stat in this game. A full bar means no demon has more.</Help></h2><Stats eng={eng} d={d} /></section>
         </div>
         <div class="col">
           <section class="panel">
@@ -919,6 +979,7 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
   useEffect(() => { const dlg = ref.current; if (dlg && !dlg.open) { dlg.showModal(); } }, []);
   const close = () => ref.current?.close();
   const skills = member.skills || d.skills.map((x: any) => x.name);
+  const passive = passiveResists(eng, skills);
   const set = (patch: Partial<Member>) => onChange({ ...member, ...patch });
   const toggle = (n: string) => set({ skills: skills.includes(n) ? skills.filter((x: string) => x !== n) : skills.concat([n]) });
   const stats: number[] = member.stats || d.stats;
@@ -942,7 +1003,7 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
           <SkillPick eng={eng} id="edit-skill" names={allSkills} chosen={skills} max={eng.cfg.maxSkillSlots || 8} onToggle={toggle} />
         </div>
         <div class="field">
-          <h3>Resistances</h3>
+          <h3 class="has-help">Resistances <Help>Resist skills like Null Ice already count in the party. Change a value here only for items, story events or gear.</Help></h3>
           <div class="res-edit">
             {elems.map((e, i) => {
               const base = d.resists[i];
@@ -956,6 +1017,7 @@ function MemberEditor({ eng, member, onChange, onClose }: { eng: Eng; member: Me
                     if (v === base) { delete r[e]; } else { r[e] = v; }
                     set({ resists: Object.keys(r).length ? r : undefined });
                   }}>{RESIST_CODES.map(c => <option value={c}>{RESIST_LONG[c]}</option>)}</select>
+                  {!(member.resists && member.resists[e]) && withPassives(base, passive[e]) !== base && <span class="res-note">{RESIST_LONG[passive[e].code]} from {passive[e].from}</span>}
                 </label>
               );
             })}
@@ -1097,7 +1159,7 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
           : table(team)}
         {team.length > 0 && (
           <div class="strip team-res">
-            <h3>Team resistances <span class="muted">({shape.persona ? 'whole stock' : 'battle party'})</span></h3>
+            <h3 class="has-help">Team resistances <span class="muted">({shape.persona ? 'whole stock' : 'battle party'})</span> <Help>For each element: how many members are weak to it, and how many resist, null, repel or drain it. Resist skills like Null Ice count.</Help></h3>
             <div class="strip-row" style={{ gridTemplateColumns: `repeat(${elems.length}, minmax(0, 1fr))` }}>
               {elems.map((e, i) => {
                 const weak = analysis.weakCount[i], res = analysis.covered[i];
@@ -1148,7 +1210,7 @@ function Party({ eng, party: mine, setParty: saveParty, shared }: { eng: Eng; pa
             <p class="hint">Lit types have at least one damaging skill in the {shape.persona ? 'stock' : 'battle party'}.</p>
           </section>
           <section class="panel">
-            <h2>Support</h2>
+            <h2 class="has-help">Support <Help>Who covers each role, from the skills of the {shape.persona ? 'stock' : 'battle party'}.</Help></h2>
             <dl class="support">
               {[['heal', 'Healing'], ['revive', 'Revive'], ['cure', 'Ailment cure'], ['buff', 'Buffs'], ['debuff', 'Debuffs']].map(([k, label]) => (
                 <div><dt>{label}</dt><dd class={analysis.support[k].length ? '' : 'missing'}>{analysis.support[k].length ? analysis.support[k].join(', ') : 'Missing'}</dd></div>
