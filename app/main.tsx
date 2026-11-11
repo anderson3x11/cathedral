@@ -1634,7 +1634,7 @@ function App() {
       <main class="main">{body}</main>
       <footer class="foot">
         <p>Fusion data and logic from <a href="https://github.com/aqiu384/megaten-fusion-tool" target="_blank" rel="noopener">aqiu384’s Megami Tensei Fusion Tools</a>, released into the public domain. Unofficial fan tool, not affiliated with Atlus or Sega.</p>
-        <p>Spotted a wrong result or a bug? <a href="https://github.com/anderson3x11/cathedral/issues" target="_blank" rel="noopener">Report it on GitHub</a>.</p>
+        <p>Spotted a wrong result or a bug? <a href="https://github.com/anderson3x11/pyxi/issues" target="_blank" rel="noopener">Report it on GitHub</a>.</p>
       </footer>
     </Fragment>
   );

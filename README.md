@@ -3,7 +3,7 @@
 Fusion calculator, skill planner and party builder for 41 Megami Tensei games:
 Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more. Named after Pixie, the first companion of every run.
 
-**Use it:** https://anderson3x11.dev/cathedral/
+**Use it:** https://anderson3x11.dev/pyxi/
 
 ## What it does
 

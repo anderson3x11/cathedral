@@ -3,7 +3,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 
 // Public address of the deployed site, needed for absolute link-preview URLs. Override with SITE_URL=... npm run build.
-const SITE = (process.env.SITE_URL || 'https://anderson3x11.dev/cathedral/').replace(/\/?$/, '/').replace(/^http:/, 'https:');
+const SITE = (process.env.SITE_URL || 'https://anderson3x11.dev/pyxi/').replace(/\/?$/, '/').replace(/^http:/, 'https:');
 const TITLE = 'Pyxi: Megaten Fusion Calculator for SMT, Persona and more';
 const NAME = 'Pyxi';
 const DESC = 'Megaten fusion calculator, skill planner and party builder for 41 games: Shin Megami Tensei, Persona, Devil Summoner, Devil Survivor and more.';
